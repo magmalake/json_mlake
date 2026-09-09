@@ -23,7 +23,7 @@
 # not embedded in a binary blob.
 
 context:
-  name: json
+  name: json_mlake
   version: "0.3.0"
 
 package:
@@ -42,7 +42,11 @@ build:
     - cp -r json $PREFIX/lib/mojo/
     # ── simdjson FFI wrapper (loaded at runtime by json) ─────────────────
     - mkdir -p $PREFIX/lib
-    - $CXX -O3 -std=c++17 -fPIC -DNDEBUG -shared
+    # ``-include iterator``: simdjson.h uses ``std::inserter`` without including
+    # <iterator>. Older standard libraries pulled it in transitively; current
+    # libc++ does not, so the header fails to compile on its own (macOS:
+    # "no member named 'inserter' in namespace 'std'").
+    - $CXX -O3 -std=c++17 -fPIC -DNDEBUG -shared -include iterator
         -o $PREFIX/lib/libsimdjson_wrapper.so
         json/cpu/simdjson_ffi/simdjson_wrapper.cpp
         -I$PREFIX/include
@@ -61,9 +65,26 @@ requirements:
 
 about:
   homepage: https://github.com/ehsanmok/json
-  license: Apache-2.0
-  summary: High-performance JSON library for Mojo with CPU and GPU support
+  repository: https://github.com/ehsanmok/json
+  documentation: https://github.com/ehsanmok/json
+  # Upstream's recipe declares Apache-2.0, but the LICENSE file, the README
+  # badge and the README's own License section all say MIT. Corrected here to
+  # match the licence actually shipped; reported upstream.
+  license: MIT
+  license_file: LICENSE
+  summary: Packaged build of json (ehsanmok/json) — simdjson-backed JSON for Mojo, imported as `json`
   description: |
+    THIS IS A REDISTRIBUTION. All of the code in this package is json, by
+    Ehsan M. Kermani <https://github.com/ehsanmok/json>, used under the MIT
+    licence. It is republished here only because json is not currently
+    published to any conda channel. Please direct stars, issues and pull
+    requests upstream, not to the repackager. This package should be abandoned
+    in favour of an official json package as soon as one exists.
+
+    Packaged by the magmalake project: https://github.com/magmalake/json_mlake
+
+    The module is imported as `json` (not `json_mlake`).
+
     json is a high-performance JSON parsing library for Mojo.
     Features include:
     - Fast CPU parsing via simdjson FFI

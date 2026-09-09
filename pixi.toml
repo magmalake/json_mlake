@@ -7,7 +7,7 @@ version = "0.3.0"
 preview = ["pixi-build"]
 
 [package]
-name = "json"
+name = "json_mlake"
 version = "0.3.0"
 
 [package.build]
@@ -17,7 +17,11 @@ version = "0.3.0"
 # "invalid type: string, expected struct MatchSpec". 0.3.13 is the newest
 # backend that speaks the API version this toolchain understands. Floating
 # this with "*" silently breaks fresh builds (CI) the moment 0.4.x ships.
-backend = { name = "pixi-build-rattler-build", version = "==0.3.13" }
+# Bumped from upstream's ``==0.3.13``, which requires a
+# ``pixi-build-api-version`` that is no longer published and so cannot be
+# solved by any current pixi (upstream pins CI to pixi 0.70.2 to cope). Every
+# magmalake repo runs pixi 0.78.0 — see mojoshelf tins.toml.
+backend = { name = "pixi-build-rattler-build", version = "0.4.*" }
 
 # Binary dependencies are specified in recipe.yaml for rattler-build backend
 
@@ -55,7 +59,10 @@ python = ">=3.10"         # Required to host pypi dependencies (gdown)
 make = ">=4.4.1,<5"       # Used by the optional Makefile build path
 git = ">=2"               # For cloning cuJSON (optional, NVIDIA benchmarks only)
 pre-commit = ">=4.2.0,<5"
-mojodoc = { git = "https://github.com/ehsanmok/mojodoc.git", branch = "main" }
+# mojodoc dropped: it carries the same unsolvable ``==0.3.13`` backend pin and
+# is a docs generator that nothing in the test suite needs. The `docs` task
+# below is therefore unavailable here; run it from upstream json.
+# mojodoc = { git = "https://github.com/ehsanmok/mojodoc.git", branch = "main" }
 
 [feature.dev.pypi-dependencies]
 gdown = ">=5.0"           # Google Drive CLI for downloading benchmark datasets

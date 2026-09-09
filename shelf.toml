@@ -1,0 +1,6 @@
+name = "json_mlake"
+version = "0.3.0"
+description = "Packaged build of json by Ehsan M. Kermani (github.com/ehsanmok/json) — simdjson-backed JSON parsing for Mojo, CPU and GPU. Republished only because json is not on a conda channel; imported as `json`. Please send stars and issues upstream."
+tags = ["json", "parsing", "simdjson", "ffi", "redistribution", "magmalake"]
+# other tins this one depends on; omit if none
+tins = []
