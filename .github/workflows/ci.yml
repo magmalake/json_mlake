@@ -3,44 +3,79 @@ name: CI
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - 'README.md'
-      - 'LICENSE'
   pull_request:
-    branches: [main]
-    paths-ignore:
-      - 'README.md'
-      - 'LICENSE'
-  workflow_dispatch:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
+# This repository is a *distribution* of an upstream project, not its
+# development home, so CI asks the question a distribution has to answer:
+# does the package build on every platform we ship, and can a consumer
+# actually resolve and import it? Upstream's own test suite is upstream's
+# to run — re-running it here would test their code, not our packaging.
 jobs:
-  test:
-    name: Tests (${{ matrix.os }})
+  package:
+    name: package / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-14]
-
+        # ubuntu-latest is linux-64, macos-latest is osx-arm64 — the two
+        # platforms magmalake ships. linux-64 matters because the taxibench
+        # containers are built there.
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Pixi
-        uses: prefix-dev/setup-pixi@v0.9.4
+      - uses: prefix-dev/setup-pixi@v0.10.2
         with:
-          # Pin pixi: unpinned "latest" now ships a build-api-version >=5
-          # that drops pixi-build-rattler-build 0.3.13 (the backend this
-          # repo and its mojodoc/mozz git dependencies pin in
-          # [package.build]), breaking source-package resolution with "no
-          # candidates were found". v0.70.2 is the newest pixi compatible
-          # with 0.3.13.
-          pixi-version: v0.70.2
-          cache: false
-          post-cleanup: false
+          # Pinned to match every other magmalake repo (mojoshelf tins.toml).
+          pixi-version: v0.78.0
+          run-install: false
 
-      - name: Run tests
-        run: pixi run tests-cpu
+      # `rattler-build` rather than a pixi source build: the recipe is what
+      # produces the published artifact, and it is also the only path that
+      # sidesteps the dead `pixi-build-rattler-build ==0.3.13` pin upstream
+      # carries. `pixi exec` runs it from a throwaway environment.
+      - name: Build the package
+        run: |
+          pixi exec rattler-build build \
+            --recipe recipe.yaml \
+            --output-dir ./out \
+            -c https://conda.modular.com/max-nightly \
+            -c conda-forge
+
+      - name: Show what was built
+        run: find ./out -name '*.conda' -exec ls -lh {} +
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: conda-${{ matrix.os }}
+          path: out/**/*.conda
+          if-no-files-found: error
+
+  consume:
+    name: consume / ${{ matrix.os }}
+    needs: package
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: conda-${{ matrix.os }}
+          path: ./channel
+
+      - uses: prefix-dev/setup-pixi@v0.10.2
+        with:
+          pixi-version: v0.78.0
+          run-install: false
+
+      # The test that matters: a project that has never seen this source tree
+      # installs the built package from a local channel and compiles against
+      # it with no `-I` flag. That is exactly what a consumer does, and it is
+      # what caught the module-resolution details during packaging.
+      - name: Consume the package from a clean project
+        shell: bash
+        run: bash .github/consume-smoke.sh
