@@ -42,13 +42,24 @@ jobs:
             -c https://conda.modular.com/max-nightly \
             -c conda-forge
 
-      - name: Show what was built
-        run: find ./out -name '*.conda' -exec ls -lh {} +
+      # rattler-build writes a usable channel (per-subdir repodata.json beside
+      # the packages) but also build scratch — bld/, src_cache/, .tmp/, test/.
+      # Copy just the channel subdirs out, so the artifact is a channel rather
+      # than a pile of .conda files: uploading only *.conda loses repodata.json
+      # and the solve then fails with "could not find subdir 'noarch'".
+      - name: Assemble the channel
+        shell: bash
+        run: |
+          mkdir -p channel
+          for d in noarch linux-64 osx-arm64; do
+            [ -d "out/$d" ] && cp -R "out/$d" channel/
+          done
+          find channel -type f \( -name '*.conda' -o -name 'repodata.json' \) -exec ls -lh {} +
 
       - uses: actions/upload-artifact@v4
         with:
           name: conda-${{ matrix.os }}
-          path: out/**/*.conda
+          path: channel/
           if-no-files-found: error
 
   consume:
