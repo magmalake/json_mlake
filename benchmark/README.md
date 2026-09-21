@@ -18,6 +18,76 @@ pixi run bench-gpu -- --debug-timing benchmark/datasets/twitter_large_record.jso
 pixi run bench-cpu benchmark/datasets/twitter.json
 ```
 
+```bash
+# Typed serde benchmark (serialize_json / deserialize_json)
+pixi run -e dev bench-serde
+pixi run -e dev bench-serde -- --json     # machine-readable
+```
+
+## Typed serde (`bench-serde`)
+
+`bench_cpu` measures the parser and `bench_build` measures `Value`
+construction. `bench_serde` covers the two entry points most consumers
+call: a typed struct in, JSON out, and back again.
+
+Five record shapes are generated from a seeded xorshift64\* stream, so a
+run is reproducible and no fixture files are needed:
+
+| Shape | What it stresses |
+|---|---|
+| `message` | flat scalars: bool, int32, int64, float64, two strings |
+| `document` | a nested struct plus a list of structs |
+| `telemetry` | two homogeneous lists, one of them 32 floats |
+| `strings` | a 32-element string list -- escape and copy bound |
+| `event` | string-heavy record plus a list of key/value structs |
+
+Each is wrapped in a `{"items": [...]}` batch so one code path serves
+both `n = 1` and `n = 100`. At `n = 1` the payload is a few hundred
+bytes, which is where per-call fixed cost shows up.
+
+Four lanes run per shape and size:
+
+| Lane | Call |
+|---|---|
+| `serialize` | `serialize_json(batch)` |
+| `deserialize` | `deserialize_json[Batch](payload)` |
+| `loads+walk` | `loads(payload)` then reading fields off `Value` |
+| `dumps` | `dumps(tree)`, with the tree built outside the timer |
+
+`loads+walk` is what a consumer has to write when typed deserialization
+does not cover the shape, so the gap between it and `deserialize` is
+what the typed path is worth. A lane that a release does not support
+prints `n/a` with the reason rather than being omitted.
+
+Timing is 5 warmup calls, then 7 runs of a calibrated iteration count
+(about 20 ms per run, capped), reporting the median of the per-run means
+and the best run. Calibration keeps a slow lane from running for minutes
+while still giving a fast lane enough iterations to be stable. Fidelity
+is checked once per lane, outside the timed region.
+
+## Same-host comparison
+
+`bench-serde` measures this library against its own previous versions.
+To find out how it compares with the other pure-Mojo JSON libraries you
+need all of them on one machine under one timing protocol, which is what
+`benchmark/compare/` does -- an ignored directory you create locally:
+
+```bash
+cd benchmark/compare && pixi run fetch && pixi run run
+```
+
+It is not shipped. Vendoring another project's sources into this
+repository would make us a distributor of them and would pin their
+versions into our build, so the harness stays local and the numbers are
+something you reproduce rather than something you take on trust. It
+generates its own environment, fetches the other libraries at pinned
+versions, and runs the same fixtures and the same calibrated protocol
+used here, plus a third lane that re-parses each document with its
+whitespace and member order changed -- the difference between a general
+JSON reader and a decoder specialized to one byte layout. The
+directory's own README records the version pins and the ways in which
+the three are not doing identical work.
+
 ## Setup
 
 ### 1. Clone the Repo
@@ -129,7 +199,7 @@ rows so you can see where time goes across the GPU pipeline:
 | **from host bytes: memcpy + parse (wall-clock)** | host→pinned memcpy + `parse_json_gpu_from_pinned` | Realistic steady-state "I have N bytes in memory, parse them via GPU" |
 | **parse_json_gpu_from_pinned (pinned, wall-clock)** | H2D + GPU kernels + stream compaction + D2H + CPU bracket matching | Apples-to-apples comparison with cuJSON (both assume pinned input) |
 | **parse_json_gpu_from_pinned (device-only)** | Same call, timed via `DeviceContext.execution_time` (CUDA events) | Pure device-queue time, excludes host-side CPU post-processing |
-| **loads[target='gpu']** | Everything + `Value` tree construction on CPU | Real-world application performance |
+| **loads[target='gpu'] (from json.gpu)** | Everything + `Value` tree construction on CPU | Real-world application performance |
 
 Pass `--debug-timing` to get a per-phase breakdown inside each
 `parse_json_gpu*` call (H2D, GPU kernels, position extraction, bracket
@@ -207,7 +277,7 @@ on DDR5). In practice you can avoid it by:
 
 ### End-to-End Performance
 
-For real applications using the full `loads[target='gpu']()` API:
+For real applications using the full `loads[target='gpu'] (from json.gpu)()` API:
 
 | Pipeline Stage | Time (804 MB) |
 |----------------|---------------|

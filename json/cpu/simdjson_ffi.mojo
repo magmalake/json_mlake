@@ -93,7 +93,7 @@ struct SimdjsonFFI:
     var _object_count: def(Int) thin abi("C") -> Int
 
     # Memory helper: copies n bytes from src_addr (integer) to dst (pointer as Int).
-    # Avoids int-to-UnsafePointer construction in Mojo, which varies across versions.
+    # Avoids int-to-Pointer construction in Mojo, which varies across versions.
     var _memcpy_from_addr: def(Int, Int, Int) thin abi("C") -> None
 
     def __init__(out self, lib_path: String = "") raises:
@@ -204,8 +204,8 @@ struct SimdjsonFFI:
     def parse(mut self, json: String) raises -> Int:
         """Parse JSON and return root value handle."""
         var json_copy = json
-        var c_str = json_copy.as_c_string_slice()
-        var ptr = Int(c_str.unsafe_ptr())
+        var c_str = json_copy.as_c_string_span()
+        var ptr = Int(c_str.ptr())
         var length = json_copy.byte_length()
 
         var err = self._parse(self._parser, ptr, length)
@@ -213,15 +213,13 @@ struct SimdjsonFFI:
         if err != SIMDJSON_OK:
             var pos = find_error_position(json)
             if err == SIMDJSON_ERROR_INVALID_JSON:
-                raise Error(json_parse_error("Invalid JSON syntax", json, pos))
+                raise Error(json_parse_error("invalid JSON syntax", json, pos))
             elif err == SIMDJSON_ERROR_UTF8:
-                raise Error(
-                    json_parse_error("Invalid UTF-8 encoding", json, pos)
-                )
+                raise Error(json_parse_error("invalid UTF-8", json, pos))
             elif err == SIMDJSON_ERROR_CAPACITY:
                 raise Error("JSON document too large (exceeds parser capacity)")
             else:
-                raise Error(json_parse_error("Unknown parse error", json, pos))
+                raise Error(json_parse_error("parse failed", json, pos))
 
         return self._get_root(self._parser)
 
@@ -285,7 +283,7 @@ struct SimdjsonFFI:
         if length == 0:
             return String("")
 
-        # Copy via C shim: avoids UnsafePointer-from-Int construction in Mojo.
+        # Copy via C shim: avoids Pointer-from-Int construction in Mojo.
         # simdjson guarantees valid UTF-8; unsafe_from_utf8 takes raw bytes.
         var bytes = List[UInt8](capacity=length)
         bytes.resize(length, 0)
@@ -352,7 +350,7 @@ struct SimdjsonFFI:
         if length == 0:
             return String("")
 
-        # Copy via C shim: avoids UnsafePointer-from-Int construction in Mojo.
+        # Copy via C shim: avoids Pointer-from-Int construction in Mojo.
         # simdjson guarantees valid UTF-8; unsafe_from_utf8 takes raw bytes.
         var bytes = List[UInt8](capacity=length)
         bytes.resize(length, 0)

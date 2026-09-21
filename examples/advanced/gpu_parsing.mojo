@@ -1,6 +1,6 @@
 # GPU-accelerated parsing
 #
-# Demonstrates ``loads[target="gpu"]`` and ``load[target="gpu"]`` for
+# Demonstrates ``loads_gpu`` and ``load_gpu`` for
 # GPU parsing on NVIDIA (CUDA), AMD (ROCm), and Apple Metal hosts.
 #
 # Performance
@@ -11,7 +11,8 @@
 
 from std.sys import has_accelerator
 
-from json import loads, load, dumps, Value
+from json import dumps, Value
+from json.gpu import loads, load
 
 
 def _demo() raises:

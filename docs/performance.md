@@ -101,7 +101,7 @@ four rows so you can see where time goes across the pipeline:
 | **from host bytes: memcpy + parse (wall-clock)** | host→pinned memcpy + `parse_json_gpu_from_pinned` | Realistic "bytes in memory → parsed" cost |
 | **parse_json_gpu_from_pinned (pinned, wall-clock)** | H2D + GPU kernels + stream compaction + D2H + CPU bracket matching | Apples-to-apples comparison with cuJSON (both assume pinned input) |
 | **parse_json_gpu_from_pinned (device-only)** | Same call, timed via `DeviceContext.execution_time` (CUDA events) | Pure device-queue time, excludes host-side CPU post-processing |
-| **loads[target='gpu']** | Everything + `Value` tree construction on CPU | Real-world application performance |
+| **loads[target='gpu'] (from json.gpu)** | Everything + `Value` tree construction on CPU | Real-world application performance |
 
 ### Why Four Rows?
 
@@ -112,7 +112,7 @@ four rows so you can see where time goes across the pipeline:
    kernel-only timings from other frameworks.
 3. **from host bytes (~280 ms, ~2.9 GB/s):** adds the realistic
    host→pinned memcpy (~120 ms for 804 MB on DDR5).
-4. **Full `loads[target='gpu']` (~900 ms, ~1.0 GB/s):** adds the
+4. **Full `loads[target='gpu'] (from json.gpu)` (~900 ms, ~1.0 GB/s):** adds the
    CPU-bound `Value` tree construction on top of everything.
 
 Pass `--debug-timing` to get a per-phase breakdown (H2D, GPU kernels,
@@ -147,6 +147,96 @@ in-string mask and does not produce a `char_types` companion stream
 apply the escape state machine and feeds stage 2 of the CPU pipeline
 to construct the tape -- the same stage 2 the CPU-only path uses.
 
+## Typed serde
+
+`serialize_json` and `deserialize_json` go straight between a struct
+and JSON bytes. Reading in particular used to go the long way round --
+parse into a tape-backed `Document`, wrap it in `Value`, walk that --
+so decoding built a whole document representation that was discarded
+one field later, took an atomic refcount touch per field access, and
+allocated a `String` for every object key merely to compare it against
+a field name.
+
+`json/reader.mojo` is a forward byte cursor that writes each value into
+its final address. `loads` is unchanged and still produces a
+`Document`, because navigating a document and decoding one into known
+types are different jobs.
+
+### Numbers
+
+Five record shapes, 100 records each, median of seven calibrated
+batches, Apple M3 Pro, `-D ASSERT=none`. Reproduce with
+`pixi run -e dev bench-serde`.
+
+| Shape | Bytes | `deserialize_json` | `loads` + `Value` walk | `serialize_json` |
+|---|---:|---:|---:|---:|
+| message | 16 KB | 15.6 us | 53.2 us | 12.4 us |
+| document | 47 KB | 60.8 us | 186.0 us | 31.5 us |
+| telemetry | 43 KB | 82.0 us | 141.6 us | 117.4 us |
+| strings | 43 KB | 61.2 us | 109.6 us | 33.7 us |
+| event | 27 KB | 38.8 us | 93.5 us | 14.7 us |
+
+### What the read path costs, and what it stopped costing
+
+Before this work the cost was about 34 ns per token on every shape,
+regardless of what the tokens were. That flatness was the tell: it was
+fixed per-token overhead, not work proportional to the data. It is now
+about 15 ns per token on the document shape. In order of effect:
+
+1. **A list is sized once, not grown from nothing.** `List` doubles
+   from capacity zero, so an eight-element array cost four allocations
+   and three copies; filling one that way measured 195 ns against 51 ns
+   with the capacity right to begin with. JSON does not announce an
+   array's length, so eight is reserved on the first element and
+   `append` doubles from there.
+2. **Short integers skip the full number scanner.** Reaching a value
+   through the scanner cost four outlined calls, a vector peek for an
+   eight-digit block a short integer never has, and a forty-eight byte
+   token to unpack. `read_int` now commits when it has itself
+   established the whole token -- optional minus, leading digit in
+   1-9, at most eighteen digits, a terminator that cannot continue a
+   number -- and defers everything else to the scanner, which stays
+   the only authority on the grammar and its messages.
+3. **A string is scanned once.** Finding the closing quote and
+   classifying the body were separate passes, and the second only
+   vectorizes at sixteen bytes, which real keys and values are not.
+   They are fused; the flags are masked to the bytes before the quote,
+   without which a control character in the *next* token would be
+   attributed to this string.
+4. **Each byte between members is looked at once.** `next_member` ran
+   the whitespace scan three times per member from positions where
+   nothing had been consumed.
+5. **A number's digits are accumulated while being validated**, rather
+   than walked once for the grammar and again for the value.
+6. **Field names are matched at compile time**, with the reader passed
+   immutably so the unrolled match loop does not reload its state after
+   every candidate.
+
+### What the float writer cost, and what it costs now
+
+Writing floats is still the slowest thing this library does, but by a
+smaller margin than it was. The telemetry shape, 32 floats per record,
+serialized in 166 us where the strings shape of the same size in bytes
+took 34. It now takes 117.
+
+Two things were wrong, and the obvious one was not the cost.
+
+Indexing a `comptime` array copies the whole array into the caller's
+frame before the first read, which for the Grisu2 cached powers is
+about a kilobyte per float. Moving both tables into constant data made
+digit generation *slower*, not faster, and was reverted. The integer
+writer did gain from the same change, which is what took the document
+shape from 37 us to 31 us.
+
+The real cost was dividing by a value the compiler could not see.
+Grisu2's integral loop divided by `pow10[kappa - 1]`, so every digit
+was a real 32-bit division. Unrolling the loop over the ten possible
+digit counts makes each divisor a literal and each division the
+multiply-and-shift a compiler emits for one. With a cheaper digit
+count and one fewer table, `shortest_digits` went from 51.2 to 42.1 ns
+per float on random mantissas, and rather more than that on the short
+decimals real payloads are made of.
+
 ## CPU Performance
 
 json has one CPU code path served by `loads(target='cpu')`: a pure
@@ -165,9 +255,11 @@ materialise an owned `String` when the bytes need unescaping or the
 caller asks for one.
 
 The GPU pipeline emits the same `Document` shape, so CPU and GPU
-agree on one DOM representation; mutation propagates correctly
-through nested containers because every `Value` is just a stable
-index into the same tape.
+agree on one DOM representation, and a `Value` from either backend is
+just a stable index into the same tape. Mutating one converts it to
+the owned tree once, not once per write. A nested write is addressed
+by pointer -- `doc.set_at("/a/b", v)` -- because a subscript hands
+back an independent value rather than a handle into its parent.
 
 ### Benchmark methodology
 

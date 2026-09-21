@@ -6,6 +6,51 @@ and GPU pipeline funnels into the same shape, so the rest of the
 library (LazyValue, JSONPath, JSON Patch, schema validation,
 reflection serde) operates on one model.
 
+## Standards
+
+| Standard | Where it lives | Catalog |
+|---|---|---|
+| RFC 8259 (JSON) | `cpu/stage1.mojo`, `cpu/stage2.mojo`, `cpu/number_parse.mojo`, `cpu/validate.mojo` | `tests/conformance/rfc8259.json` |
+| RFC 7493 (I-JSON) | `ijson.mojo`, opt in with `ParserConfig.interoperable()` | `tests/conformance/rfc7493-ijson.json` |
+| RFC 6901 (JSON Pointer) | `pointer.mojo`, used by `Value.at`, `patch.mojo` and `lazy.mojo` | `tests/conformance/rfc6901-pointer.json` |
+| RFC 6902 (JSON Patch) | `patch.mojo` | `tests/conformance/rfc6902-patch.json` |
+| RFC 7396 (JSON Merge Patch) | `patch.mojo` | `tests/conformance/rfc7396-merge-patch.json` |
+| RFC 9535 (JSONPath) | `jsonpath.mojo` | the specification's own worked examples, in `tests/test_jsonpath.mojo` |
+| RFC 9485 (I-Regexp) | `regex.mojo`, used by JSONPath `match`/`search` and schema `pattern` | `tests/test_regex.mojo` |
+| JSON Schema draft 2020-12 | `schema.mojo` | `tests/conformance/jsonschema-2020-12.json` |
+
+Each catalog has a runner that asserts the set of failing cases is
+exactly a declared list of known gaps, so a regression fails the build
+and so does fixing a gap without deleting its entry. Those lists are
+currently empty.
+
+## Licences
+
+`json` is MIT throughout, but what it builds against is not.
+
+| Component | Terms | Where to read them |
+|---|---|---|
+| `json` | MIT | `LICENSE` |
+| Mojo toolchain | Source is Apache-2.0 with LLVM Exceptions; the conda packages still declare `LicenseRef-Modular-Proprietary` and ship the Modular Community License Terms | `info/licenses/LICENSE` in the installed package |
+| simdjson | Apache-2.0, linked into `libsimdjson_wrapper.so` | `NOTICE` |
+| MAX (`max-core`) | Modular Community License; GPU path only | `json/gpu/LICENSE-GPU.md` |
+
+`json/gpu/` is the only part that needs `max-core`, and nothing on the
+CPU import graph names it. That is load-bearing rather than tidy: Mojo
+resolves every import statement it can see, whether or not the branch
+holding it survives `comptime if`, and a module-scope `comptime if` is
+rejected outright, so there is no way to write a conditional import. An
+unimported submodule, by contrast, is never compiled. Keeping the GPU
+entry point in `json/gpu/backend.mojo`, which `json/parser.mojo` does
+not name, is therefore the only construction that keeps a default
+install free of MAX. `pixi run verify-cpu-only` asserts it.
+
+`json.gpu` therefore provides its own `loads` and `load`, with the same
+`target` parameter as the ones in `json` and forwarding every non-GPU
+target to them. The call site is unchanged, `loads[target="gpu"](...)`;
+what changes is which module the name comes from, and that is what
+keeps the import in the caller's hands.
+
 ## System Overview
 
 ```mermaid
@@ -139,6 +184,7 @@ var data = loads[target="cpu-simdjson"]('{"key": "value"}')
 **Implementation:** Native Mojo GPU kernels inspired by [cuJSON](https://github.com/AutomataLab/cuJSON)
 
 **Location:**
+- `json/gpu/backend.mojo` - `loads` / `load` with the `target` parameter (opt-in; needs `max-core`)
 - `json/gpu/parser.mojo` - Main GPU parser (`parse_json_gpu`, `parse_json_gpu_from_pinned`)
 - `json/gpu/kernels.mojo` - CUDA-style GPU kernels (fused bitmap + structural extraction)
 - `json/gpu/stream_compact.mojo` - GPU stream compaction for position extraction
@@ -201,7 +247,43 @@ flowchart LR
 
 ## Value Type
 
-The `Value` struct represents any JSON value (null, bool, int, float, string, array, object).
+The `Value` struct represents any JSON value (null, bool, int, float,
+string, array, object). It carries one of two representations -- a
+tape-backed view over a shared `Document`, or an owned mutable tree --
+and which one it holds is an implementation detail; the whole API
+behaves identically either way. A parsed value converts to the owned
+tree the first time it is mutated, and at most once.
+
+It behaves the way a JSON value behaves elsewhere:
+
+- `len(v)` counts an array's elements, an object's members, or a
+  string's bytes, and raises on a scalar rather than answering 0.
+- `Bool(v)` is falsy for null, `false`, zero, and any empty string,
+  array or object.
+- `"key" in obj` and `3 in arr` test membership.
+- `==` is a **structural deep comparison**: member order does not
+  matter and `1 == 1.0`, because an object carries no order and JSON
+  has one number type. `__hash__` agrees with it, so a `Value` can key
+  a `Dict` and a reordered object finds the same bucket.
+- `for item in arr:` and `obj.items()` / `keys()` / `values()` are
+  lazy. `array_items()` / `object_items()` still build the whole
+  `List` up front and are kept only for compatibility.
+- Reading a scalar has three flavours by design: `int_value()` and
+  friends never raise and never check the tag, `as_int()` and friends
+  raise an error naming the type actually found, and `int_or(default)`
+  and friends substitute a fallback.
+- `get(key)` returns `Optional[Value]`, `get(key, default)` a value,
+  `__setitem__` / `remove` / `pop` write and delete, negative indices
+  count from the end, and `try_at(pointer)` is the non-raising twin of
+  `at(pointer)`.
+
+**Breaking change in 0.4.0:** `get(key)` used to return the member's
+raw JSON *text* and raise on an absent key. That behaviour now lives
+under the name that says what it does, `raw_member(key)`.
+
+A nested write goes through a JSON Pointer. `doc["a"]` hands back an
+independent value, so `doc["a"].set("b", v)` edits a detached child;
+`doc.set_at("/a/b", v)` is the spelling that reaches `doc`.
 
 See [API Reference](https://ehsanmok.github.io/json/) for complete `Value` methods.
 
@@ -227,9 +309,13 @@ json/
 ├── config.mojo                # Parser / serializer configuration
 ├── errors.mojo                # Error formatting with line / column
 ├── unicode.mojo               # Unicode escape handling
+├── pointer.mojo               # JSON Pointer (RFC 6901), shared by every layer
 ├── patch.mojo                 # JSON Patch & Merge Patch (RFC 6902 / 7396)
 ├── jsonpath.mojo              # JSONPath (RFC 9535)
-├── schema.mojo                # JSON Schema validation
+├── gpu/                       # opt-in; needs max-core (see LICENSE-GPU.md)
+├── regex.mojo                 # I-Regexp (RFC 9485), for schema and JSONPath
+├── schema.mojo                # JSON Schema draft 2020-12
+├── ijson.mojo                 # I-JSON (RFC 7493) checks
 ├── reflection.mojo            # Compile-time reflection serde
 ├── deserialize.mojo           # serialize_json / deserialize_json
 ├── cpu/
@@ -261,7 +347,11 @@ tests/
 ├── test_reflection.mojo            # Compile-time reflection serde
 ├── test_patch.mojo                 # JSON Patch / Merge Patch
 ├── test_jsonpath.mojo              # JSONPath (RFC 9535)
-├── test_schema.mojo                # JSON Schema
+├── test_regex.mojo                 # I-Regexp (RFC 9485)
+├── test_schema.mojo                # JSON Schema draft 2020-12
+├── test_conformance.mojo           # RFC 8259 and RFC 7493 catalogs
+├── test_pointer_patch_conformance.mojo  # RFC 6901 / 6902 / 7396 catalogs
+├── test_schema_conformance.mojo    # JSON Schema 2020-12 catalog
 ├── test_e2e.mojo                   # End-to-end
 ├── test_gpu.mojo                   # GPU parser
 ├── test_gpu_kernels.mojo           # GPU kernel correctness (stream compaction)

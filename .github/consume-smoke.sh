@@ -29,7 +29,7 @@ channels = ["file://$CHANNEL", "https://conda.modular.com/max-nightly", "conda-f
 platforms = ["$PLATFORM"]
 
 [dependencies]
-mojo = "==1.0.0"
+mojo = "==1.1.0"
 json_mlake = "*"
 TOML
 
