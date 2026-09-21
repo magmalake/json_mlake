@@ -74,6 +74,66 @@ struct Employee(Defaultable, Movable):
 
 
 @fieldwise_init
+struct SizedInts(Defaultable, Movable):
+    """Every sized integer width, to pin the reflection arms."""
+
+    var i8: Int8
+    var i16: Int16
+    var i32: Int32
+    var i64: Int64
+    var u8: UInt8
+    var u16: UInt16
+    var u32: UInt32
+    var u64: UInt64
+
+    def __init__(out self):
+        self.i8 = 0
+        self.i16 = 0
+        self.i32 = 0
+        self.i64 = 0
+        self.u8 = 0
+        self.u16 = 0
+        self.u32 = 0
+        self.u64 = 0
+
+
+@fieldwise_init
+struct LineItem(Movable):
+    var sku: String
+    var qty: Int
+
+
+@fieldwise_init
+struct OrderLine(Defaultable, Movable):
+    var code: String
+    var qty: Int64
+
+    def __init__(out self):
+        self.code = ""
+        self.qty = 0
+
+
+@fieldwise_init
+struct Order(Defaultable, Movable):
+    var order_id: String
+    var lines: List[OrderLine]
+
+    def __init__(out self):
+        self.order_id = ""
+        self.lines = List[OrderLine]()
+
+
+@fieldwise_init
+struct Basket(Movable):
+    """A list of structs, and a type with no default constructor.
+
+    Both were refused by the old read path; neither is refused now.
+    """
+
+    var items: List[LineItem]
+
+
+@fieldwise_init
 struct Config(Defaultable, Movable):
     var name: String
     var score: Optional[Int]
@@ -472,29 +532,32 @@ def test_round_trip_mixed() raises:
 
 
 def test_error_not_object() raises:
+    """A struct needs an object, and the error says which brace it wanted."""
     try:
         var p = deserialize_json[Point]('"not an object"')
         raise Error("Should have raised")
     except e:
-        assert_true("Expected JSON object" in String(e))
+        assert_true("expected '{'" in String(e), String(e))
     print("  test_error_not_object passed")
 
 
 def test_error_missing_required_field() raises:
+    """A missing field names itself rather than leaving a half-built struct."""
     try:
         var p = deserialize_json[Point]('{"x":1}')
         raise Error("Should have raised")
     except e:
-        assert_true("not found" in String(e) or "y" in String(e))
+        assert_true("missing required field 'y'" in String(e), String(e))
     print("  test_error_missing_required_field passed")
 
 
 def test_error_wrong_type() raises:
+    """A type mismatch names the field it happened in."""
     try:
         var p = deserialize_json[Point]('{"x":"nope","y":2}')
         raise Error("Should have raised")
     except e:
-        assert_true("not" in String(e) or "int" in String(e))
+        assert_true("field 'x'" in String(e), String(e))
     print("  test_error_wrong_type passed")
 
 
@@ -697,6 +760,204 @@ def test_round_trip_combinator_box_null_optional_list() raises:
 # ===================================================================
 
 
+# ---------------------------------------------------------------------------
+# Sized integer widths.
+#
+# Before these arms existed, only `Int` and `Int64` were reflected; an
+# `Int32` field fell through to the "Unsupported field type" error, which
+# is what forced a caller with an `Int32` field off the reflection path
+# entirely.
+# ---------------------------------------------------------------------------
+
+
+def test_serialize_sized_ints() raises:
+    var v = SizedInts(-8, -16, -32, -64, 8, 16, 32, 64)
+    var json = serialize_json(v)
+    assert_equal(
+        json,
+        '{"i8":-8,"i16":-16,"i32":-32,"i64":-64,'
+        + '"u8":8,"u16":16,"u32":32,"u64":64}',
+    )
+    print("  test_serialize_sized_ints passed")
+
+
+def test_deserialize_sized_ints() raises:
+    var json = (
+        '{"i8":-1,"i16":-2,"i32":-3,"i64":-4,'
+        + '"u8":1,"u16":2,"u32":3,"u64":4}'
+    )
+    var v = deserialize_json[SizedInts](json)
+    assert_equal(Int(v.i8), -1)
+    assert_equal(Int(v.i16), -2)
+    assert_equal(Int(v.i32), -3)
+    assert_equal(Int(v.i64), -4)
+    assert_equal(Int(v.u8), 1)
+    assert_equal(Int(v.u16), 2)
+    assert_equal(Int(v.u32), 3)
+    assert_equal(Int(v.u64), 4)
+    print("  test_deserialize_sized_ints passed")
+
+
+def test_round_trip_sized_ints() raises:
+    var original = SizedInts(-128, -32768, -2147483648, -64, 255, 65535, 7, 9)
+    var back = deserialize_json[SizedInts](serialize_json(original))
+    assert_equal(Int(back.i8), -128)
+    assert_equal(Int(back.i16), -32768)
+    assert_equal(Int(back.i32), -2147483648)
+    assert_equal(Int(back.u8), 255)
+    assert_equal(Int(back.u16), 65535)
+    print("  test_round_trip_sized_ints passed")
+
+
+def test_serialize_int32_negative() raises:
+    """The specific gap that pushed callers off reflection."""
+    var v = SizedInts()
+    v.i32 = -12345
+    assert_true('"i32":-12345' in serialize_json(v))
+    print("  test_serialize_int32_negative passed")
+
+
+# ---------------------------------------------------------------------------
+# Unsupported list element types must fail loudly.
+#
+# A `List` is itself a struct, so `List[LineItem]` used to reach the
+# nested-struct arm: serialization reflected over List's *internal*
+# fields and emitted its data pointer, length and capacity as a JSON
+# object -- corrupt output that looked like success. Both directions now
+# raise instead.
+# ---------------------------------------------------------------------------
+
+
+@fieldwise_init
+struct FloatLists(Defaultable, Movable):
+    """Float containers, which a type-name substring test used to break."""
+
+    var samples: List[Float64]
+    var ratio: Float32
+    var reading: Float64
+
+    def __init__(out self):
+        self.samples = List[Float64]()
+        self.ratio = 0.0
+        self.reading = 0.0
+
+
+def test_serialize_list_of_float64() raises:
+    """A `List[Float64]` field is an array, not a float.
+
+    Float dispatch matched the reflected type *name* against the
+    substring "SIMD[DType.float64". `List[Float64]` reflects to a name
+    containing its element type, so the list matched the float arm and
+    `rebind[Float64]` on a list's (pointer, length, capacity) layout
+    failed to compile -- any struct with such a field was unusable, and
+    the error pointed at the rebind rather than at the field. Dispatch
+    now compares types (`T == Float64`), which no container can alias.
+    """
+    var v = FloatLists(List[Float64](), Float32(0.5), 1.25)
+    v.samples.append(1.5)
+    v.samples.append(2.0)
+    v.samples.append(-0.25)
+    var json = serialize_json(v)
+    assert_equal(json, '{"samples":[1.5,2.0,-0.25],"ratio":0.5,"reading":1.25}')
+    print("  test_serialize_list_of_float64 passed")
+
+
+def test_round_trip_list_of_float64() raises:
+    """The same shape survives a round trip through the reader."""
+    var v = FloatLists(List[Float64](), Float32(0.25), 3.5)
+    v.samples.append(0.125)
+    v.samples.append(64.0)
+    var back = deserialize_json[FloatLists](serialize_json(v))
+    assert_equal(len(back.samples), 2)
+    assert_equal(back.samples[0], 0.125)
+    assert_equal(back.samples[1], 64.0)
+    assert_equal(back.ratio, Float32(0.25))
+    assert_equal(back.reading, 3.5)
+    print("  test_round_trip_list_of_float64 passed")
+
+
+def test_serialize_list_of_structs() raises:
+    """`List[<struct>]` serializes as an array of objects.
+
+    This used to be impossible two different ways. Originally a `List`
+    is itself a struct, so it reached the nested-struct arm and
+    reflection emitted List's internal data pointer, length and capacity
+    as a JSON object -- corrupt output that looked like success. It was
+    then made an explicit error, on the belief that the element type
+    could not be recovered: inside a function parametric on `T` a
+    reflected field type is bound only by `AnyType`, so no `[E](List[E])`
+    overload matches and even `len()` will not resolve.
+
+    Retroactive conformance is what makes it work. Inside
+    `__extension List(_JsonEmit)` the element parameter is concrete per
+    instantiation, so an ordinary generic call deduces it.
+    """
+    var b = Basket(List[LineItem]())
+    b.items.append(LineItem("sku-1", 1))
+    b.items.append(LineItem("sku-2", 2))
+    var json = serialize_json(b)
+    assert_equal(
+        json,
+        '{"items":[{"sku":"sku-1","qty":1},{"sku":"sku-2","qty":2}]}',
+    )
+    print("  test_serialize_list_of_structs passed")
+
+
+def test_serialize_empty_list_of_structs() raises:
+    var b = Basket(List[LineItem]())
+    assert_equal(serialize_json(b), '{"items":[]}')
+    print("  test_serialize_empty_list_of_structs passed")
+
+
+def test_serialize_list_of_structs_nested_deeper() raises:
+    """A struct in a list in a struct, with scalars alongside."""
+    var o = Order()
+    o.order_id = "ord-9"
+    o.lines.append(OrderLine("a", 2))
+    o.lines.append(OrderLine("b", 3))
+    assert_equal(
+        serialize_json(o),
+        '{"order_id":"ord-9","lines":'
+        + '[{"code":"a","qty":2},{"code":"b","qty":3}]}',
+    )
+    print("  test_serialize_list_of_structs_nested_deeper passed")
+
+
+def test_deserialize_list_of_structs() raises:
+    """A list of structs decodes, rather than being declined.
+
+    The read path used to refuse this outright: filling a `List[E]`
+    through a reflected field pointer needed `E` to be
+    default-constructible, so it could not be done at all. Reading
+    into a slot rather than over a default removes the requirement.
+    """
+    var basket = deserialize_json[Basket](
+        '{"items":[{"sku":"a","qty":2},{"sku":"b","qty":3}]}'
+    )
+    assert_equal(len(basket.items), 2)
+    assert_equal(basket.items[0].sku, "a")
+    assert_equal(basket.items[0].qty, 2)
+    assert_equal(basket.items[1].sku, "b")
+    assert_equal(basket.items[1].qty, 3)
+
+    var empty = deserialize_json[Basket]('{"items":[]}')
+    assert_equal(len(empty.items), 0)
+    print("  test_deserialize_list_of_structs passed")
+
+
+def test_error_inside_a_list_names_the_element() raises:
+    """A failure deep in a container reports the path to it."""
+    var message = String()
+    try:
+        _ = deserialize_json[Basket]('{"items":[{"sku":"a","qty":"no"}]}')
+    except e:
+        message = String(e)
+    assert_true("field 'items'" in message, message)
+    assert_true("element 0" in message, message)
+    assert_true("field 'qty'" in message, message)
+    print("  test_error_inside_a_list_names_the_element passed")
+
+
 def main() raises:
     print("Running reflection-based serde tests...")
     print()
@@ -759,6 +1020,23 @@ def main() raises:
     test_serialize_list_list_int()
     test_round_trip_combinator_box()
     test_round_trip_combinator_box_null_optional_list()
+    print()
+
+    print("Sized integers:")
+    test_serialize_sized_ints()
+    test_deserialize_sized_ints()
+    test_round_trip_sized_ints()
+    test_serialize_int32_negative()
+    print()
+
+    print("Generic list elements:")
+    test_serialize_list_of_structs()
+    test_serialize_empty_list_of_structs()
+    test_serialize_list_of_structs_nested_deeper()
+    test_deserialize_list_of_structs()
+    test_error_inside_a_list_names_the_element()
+    test_serialize_list_of_float64()
+    test_round_trip_list_of_float64()
     print()
 
     print("All reflection serde tests passed!")

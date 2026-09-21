@@ -12,6 +12,91 @@
 
 from std.collections import List
 
+from ..pointer import parse_pointer
+from ..unicode import unescape_json_string_span
+
+
+# ---------------------------------------------------------------------------
+# JSON string escaping -- the single canonical implementation
+# ---------------------------------------------------------------------------
+#
+# This lives here, in the dependency-free module, because all three
+# serialization paths need it: `serialize.mojo` (scalars), `value.mojo`
+# (tape-backed containers) and `owned.mojo` (owned-tree containers).
+#
+# It used to be four near-duplicate copies, and they had drifted apart:
+# the owned-tree copy escaped only quote, backslash, 0x0A, 0x0D and 0x09
+# and emitted every other control byte raw. RFC 8259 s7 requires the whole
+# U+0000..U+001F range, so a control character inside a hand-built object
+# produced invalid JSON, while the same value read from a tape produced
+# correct output. Keeping one implementation is what stops that class of
+# divergence.
+
+
+comptime _HEX_DIGITS = "0123456789abcdef".as_bytes()
+
+
+def escape_json_bytes(mut out: List[UInt8], s: String):
+    """Append `s` to `out` as a quoted, escaped JSON string literal.
+
+    Appends into a caller-owned buffer so a container can escape many
+    keys and values into one allocation.
+
+    Escapes per RFC 8259 s7: quote and backslash always; 0x08, 0x0C,
+    0x0A, 0x0D and 0x09 as their two-character short forms; every other
+    byte below 0x20 as a six-character "u00" hex escape.
+    Bytes >= 0x20 pass through unchanged -- that includes 0x7F (DEL),
+    which the RFC does *not* require escaping, and all UTF-8
+    continuation bytes, so multi-byte characters survive untouched.
+    """
+    out.append(UInt8(ord('"')))
+    var b = s.as_bytes()
+    for i in range(len(b)):
+        var c = b[i]
+        if c == UInt8(ord('"')):
+            out.append(UInt8(ord("\\")))
+            out.append(UInt8(ord('"')))
+        elif c == UInt8(ord("\\")):
+            out.append(UInt8(ord("\\")))
+            out.append(UInt8(ord("\\")))
+        elif c == UInt8(0x0A):
+            out.append(UInt8(ord("\\")))
+            out.append(UInt8(ord("n")))
+        elif c == UInt8(0x0D):
+            out.append(UInt8(ord("\\")))
+            out.append(UInt8(ord("r")))
+        elif c == UInt8(0x09):
+            out.append(UInt8(ord("\\")))
+            out.append(UInt8(ord("t")))
+        elif c == UInt8(0x08):
+            out.append(UInt8(ord("\\")))
+            out.append(UInt8(ord("b")))
+        elif c == UInt8(0x0C):
+            out.append(UInt8(ord("\\")))
+            out.append(UInt8(ord("f")))
+        elif c < UInt8(0x20):
+            out.append(UInt8(ord("\\")))
+            out.append(UInt8(ord("u")))
+            out.append(UInt8(ord("0")))
+            out.append(UInt8(ord("0")))
+            out.append(_HEX_DIGITS[Int(c) >> 4])
+            out.append(_HEX_DIGITS[Int(c) & 0xF])
+        else:
+            out.append(c)
+    out.append(UInt8(ord('"')))
+
+
+def escape_json_string(s: String) -> String:
+    """`s` as a quoted, escaped JSON string literal.
+
+    Builds the bytes once and converts once, rather than the previous
+    `out += chr(Int(c))` per byte -- which constructed a heap `String`
+    for every character in the input.
+    """
+    var out = List[UInt8](capacity=s.byte_length() + 2)
+    escape_json_bytes(out, s)
+    return String(unsafe_from_utf8=out)
+
 
 # ---------------------------------------------------------------------------
 # Read-side helpers (used by Value reads, LazyValue, JSON Pointer)
@@ -56,13 +141,32 @@ def _extract_field_value(raw: String, key: String) raises -> String:
             i += 1
             var key_start = i
 
+            var has_escape = False
             while i < n and raw_bytes[i] != UInt8(ord('"')):
                 if raw_bytes[i] == UInt8(ord("\\")):
+                    has_escape = True
                     i += 2
                 else:
                     i += 1
 
-            var found_key = String(unsafe_from_utf8=raw.as_bytes()[key_start:i])
+            # The key is compared against a token that has already
+            # been unescaped, so a key carrying escapes has to be
+            # unescaped too. Without this, `\u0041` in the document
+            # never matches the `A` the caller asked for.
+            var key_end = i
+            var found_key: String
+            if has_escape:
+                found_key = String(
+                    unsafe_from_utf8=Span(
+                        unescape_json_string_span(
+                            raw.as_bytes(), key_start, key_end
+                        )
+                    )
+                )
+            else:
+                found_key = String(
+                    unsafe_from_utf8=raw.as_bytes()[key_start:key_end]
+                )
             i += 1
 
             while i < n and (
@@ -365,35 +469,8 @@ def _extract_object_keys(raw: String) -> List[String]:
 def _parse_json_pointer(pointer: String) raises -> List[String]:
     """Parse a JSON Pointer string into tokens.
 
-    Handles RFC 6901 escape sequences:
-        ~0 -> ~.
-        ~1 -> /.
-
-    Lives in `raw_ops.mojo` because it has no dependency on `Value` (it
-    only inspects the pointer string and returns tokens).
+    Kept as a name here because `Value` and the package re-export it.
+    The implementation lives in `json/pointer.mojo`, which is the one
+    RFC 6901 parser the whole library shares.
     """
-    var tokens = List[String]()
-    var pointer_bytes = pointer.as_bytes()
-    var n = len(pointer_bytes)
-    var i = 1  # Skip leading /
-
-    while i < n:
-        var token = String()
-        while i < n and pointer_bytes[i] != UInt8(ord("/")):
-            if pointer_bytes[i] == UInt8(ord("~")):
-                if i + 1 < n:
-                    if pointer_bytes[i + 1] == UInt8(ord("0")):
-                        token += "~"
-                        i += 2
-                        continue
-                    elif pointer_bytes[i + 1] == UInt8(ord("1")):
-                        token += "/"
-                        i += 2
-                        continue
-                raise Error("Invalid escape sequence in JSON Pointer")
-            token += chr(Int(pointer_bytes[i]))
-            i += 1
-        tokens.append(token^)
-        i += 1  # Skip /
-
-    return tokens^
+    return parse_pointer(pointer)

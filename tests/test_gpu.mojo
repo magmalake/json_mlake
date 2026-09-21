@@ -5,10 +5,12 @@
 # are short-circuited only on hosts without any accelerator at all
 # (CPU-only CI).
 
+from std.os import remove
 from std.sys import has_accelerator
 from std.testing import assert_equal, assert_true, TestSuite
 
-from json import loads, dumps, Value, Null
+from json import dumps, Value, Null
+from json.gpu import loads, load
 from json import serialize_json, deserialize_json
 from json.gpu.tape_adapter import parse_gpu_to_value
 from json.cpu.stage1_scalar import parse_structural_scalar
@@ -196,17 +198,28 @@ struct _GPUPerson(Defaultable, Movable):
 
 
 def test_gpu_reflection_roundtrip() raises:
-    """Test reflection-based deserialize_json with GPU backend."""
+    """Typed serde over text a GPU parse produced.
+
+    `deserialize_json` no longer takes a backend: it reads bytes
+    straight into the struct rather than building a document first, so
+    there is no parse for a backend to select. A caller who wants the
+    GPU parser calls `loads_gpu` and gets a `Value`. This
+    checks the two meet: GPU-parsed text round-trips through the typed
+    path.
+    """
     comptime if not GPU_RUNTIME_AVAILABLE:
         return
     var json_str = '{"name":"GPU Test","age":42,"active":true}'
-    var person = deserialize_json[_GPUPerson, target="gpu"](json_str)
+    var parsed = loads[target="gpu"](json_str)
+    assert_equal(parsed["name"].string_value(), "GPU Test")
+
+    var person = deserialize_json[_GPUPerson](json_str)
     assert_equal(person.name, "GPU Test")
     assert_equal(person.age, 42)
     assert_equal(person.active, True)
 
     var back = serialize_json(person)
-    var rt = deserialize_json[_GPUPerson, target="gpu"](back)
+    var rt = deserialize_json[_GPUPerson](back)
     assert_equal(rt.name, "GPU Test")
     assert_equal(rt.age, 42)
 
@@ -365,9 +378,40 @@ def test_tape_adapter_roundtrip() raises:
     assert_equal(users.array_count(), 2, "adapter Value users has 2 elements")
 
 
+def test_load_ndjson_on_gpu() raises:
+    """`load_gpu` with `.ndjson` auto-detection."""
+    comptime if not GPU_RUNTIME_AVAILABLE:
+        return
+    var f_out = open("test_gpu_api.ndjson", "w")
+    f_out.write('{"x":1}\n{"x":2}\n{"x":3}\n')
+    f_out.close()
+
+    var data = load[target="gpu"]("test_gpu_api.ndjson")
+    assert_true(data.is_array())
+    assert_equal(data.array_count(), 3)
+
+
+def test_loads_ndjson_on_gpu() raises:
+    """Newline-delimited JSON, one line per GPU launch."""
+    comptime if not GPU_RUNTIME_AVAILABLE:
+        return
+    var f_out = open("test_gpu_lines.ndjson", "w")
+    f_out.write('{"id":1}\n{"id":2}\n')
+    f_out.close()
+    var values = load[target="gpu"]("test_gpu_lines.ndjson")
+    assert_equal(values.array_count(), 2)
+
+
 def main() raises:
     print("=" * 60)
     print("test_gpu.mojo - GPU loads() tests")
     print("=" * 60)
     print()
     TestSuite.discover_tests[__functions_in_module()]().run()
+
+    # Best effort: a test that failed early may not have created it.
+    try:
+        remove("test_gpu_api.ndjson")
+        remove("test_gpu_lines.ndjson")
+    except:
+        pass

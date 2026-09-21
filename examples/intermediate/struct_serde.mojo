@@ -10,7 +10,7 @@ from json.deserialize import Deserializable, deserialize, get_string, get_int, g
 
 
 @fieldwise_init
-struct Person(Serializable, Deserializable, Copyable, Movable):
+struct Person(Serializable, Deserializable, Copyable):
     """A person with name, age, and active status.
 
     Implements both Serializable and Deserializable for full round-trip support.
@@ -93,19 +93,6 @@ def example_round_trip() raises:
     print()
 
 
-def example_gpu_deserialize() raises:
-    """Demonstrate GPU-accelerated deserialization."""
-    print("=== GPU-Accelerated Deserialization ===\n")
-
-    var json_str = '{"name":"Dave","age":40,"active":true}'
-    print("JSON string:", json_str)
-
-    # Use GPU backend for parsing (useful for large JSON)
-    var person = deserialize[Person, target="gpu"](json_str)
-    print("Deserialized (GPU):", person.name, person.age, person.active)
-    print()
-
-
 def example_direct_method_calls() raises:
     """Show that you can also call methods directly."""
     print("=== Direct Method Calls ===\n")
@@ -135,7 +122,6 @@ def main() raises:
     example_serialize()
     example_deserialize()
     example_round_trip()
-    example_gpu_deserialize()
     example_direct_method_calls()
 
     print("═" * 46)

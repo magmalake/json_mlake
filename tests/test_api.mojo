@@ -1,5 +1,6 @@
 # Comprehensive tests for the unified API
 
+from std.os import remove
 from std.testing import assert_equal, assert_true, TestSuite
 
 from json import (
@@ -140,24 +141,6 @@ def test_load_ndjson() raises:
     assert_equal(data.array_count(), 2)
 
 
-def test_load_ndjson_gpu() raises:
-    """Test load with GPU + .ndjson auto-detection."""
-    var f_out = open("test_api_gpu.ndjson", "w")
-    f_out.write('{"x":1}\n{"x":2}\n{"x":3}\n')
-    f_out.close()
-
-    var data = load[target="gpu"]("test_api_gpu.ndjson")
-    assert_true(data.is_array())
-    assert_equal(data.array_count(), 3)
-
-
-def test_loads_ndjson_gpu() raises:
-    """Test loads[format='ndjson'] with GPU."""
-    var ndjson = '{"id":1}\n{"id":2}'
-    var values = loads[target="gpu", format="ndjson"](ndjson)
-    assert_equal(len(values), 2)
-
-
 def test_load_streaming() raises:
     """Test load with streaming=True."""
     var f_out = open("test_api_stream.ndjson", "w")
@@ -256,6 +239,90 @@ def test_ndjson_roundtrip() raises:
     assert_equal(len(reparsed), 3)
 
 
+def test_parser_config_keeps_non_ascii_intact() raises:
+    """Preprocessing rebuilt the document through `chr` per byte.
+
+    Any byte above 0x7F was read as a code point and written back as
+    two, so a document with non-ASCII text was corrupted before the
+    parser saw it. This only happened when a `ParserConfig` asked for
+    comments or trailing commas, which is exactly when nobody looks.
+    """
+    var config = ParserConfig(allow_comments=True, allow_trailing_comma=True)
+    var data = loads('{"a": "café 😀" /* note */, "b": [1, 2, ],}', config)
+    assert_equal(data["a"].string_value(), "café 😀")
+    assert_equal(data["b"].array_count(), 2)
+
+
+def test_parser_config_leaves_string_contents_alone() raises:
+    """A comma inside a string is not a trailing comma."""
+    var config = ParserConfig(allow_trailing_comma=True)
+    var data = loads('{"a": "x, }", "b": [1,]}', config)
+    assert_equal(data["a"].string_value(), "x, }")
+    assert_equal(data["b"].array_count(), 1)
+
+
+def test_parser_config_enforces_max_depth() raises:
+    var config = ParserConfig(max_depth=3)
+    _ = loads("[[1]]", config)
+    var raised = False
+    try:
+        _ = loads("[[[[1]]]]", config)
+    except:
+        raised = True
+    assert_true(raised)
+
+
+def test_ijson_rejects_duplicate_member_names() raises:
+    """RFC 7493 section 2.1. The default parser accepts them, correctly."""
+    var strict = ParserConfig.interoperable()
+    _ = loads('{"a":1,"b":2}', strict)
+    var raised = False
+    try:
+        _ = loads('{"a":1,"a":2}', strict)
+    except:
+        raised = True
+    assert_true(raised)
+    # Nested objects are checked too.
+    raised = False
+    try:
+        _ = loads('{"x":[{"b":1,"b":2}]}', strict)
+    except:
+        raised = True
+    assert_true(raised)
+    # Without the mode this is a valid RFC 8259 document.
+    assert_equal(Int(loads('{"a":1,"a":2}')["a"].int_value()), 1)
+
+
+def test_ijson_rejects_unpaired_surrogates() raises:
+    """RFC 7493 section 2.3.
+
+    Checked against the source text, because parsing turns an unpaired
+    escape into U+FFFD and that is indistinguishable from a literal one.
+    """
+    var strict = ParserConfig.interoperable()
+    _ = loads('"\\ud834\\udd1e"', strict)
+    _ = loads('"\\u0041"', strict)
+    var bad_cases: List[String] = ['"\\ud800"', '"\\udc00"', '"\\ud800a"']
+    for bad in bad_cases:
+        var raised = False
+        try:
+            _ = loads(bad, strict)
+        except:
+            raised = True
+        assert_true(raised, "should have been rejected: " + bad)
+
+
+def test_ijson_keeps_exact_large_integers() raises:
+    """RFC 7493 section 2.2 is advice to protocol designers.
+
+    An integer outside the range a `Float64` names exactly is kept
+    exact here, so rejecting it would lose information rather than
+    protect anyone.
+    """
+    var strict = ParserConfig.interoperable()
+    assert_equal(dumps(loads("9007199254740993", strict)), "9007199254740993")
+
+
 def main() raises:
     print("=" * 60)
     print("test_api.mojo - Unified API Tests")
@@ -263,13 +330,12 @@ def main() raises:
     print()
     TestSuite.discover_tests[__functions_in_module()]().run()
 
-    # Cleanup
-    import os
-
+    # Cleanup. The files are written by the round-trip tests above;
+    # removal is best-effort because a test that failed early may not
+    # have created its file.
     try:
-        os.remove("test_api.json")
-        os.remove("test_api.ndjson")
-        os.remove("test_api_gpu.ndjson")
-        os.remove("test_api_stream.ndjson")
+        remove("test_api.json")
+        remove("test_api.ndjson")
+        remove("test_api_stream.ndjson")
     except:
         pass

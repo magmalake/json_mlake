@@ -15,11 +15,10 @@ from std.benchmark import (
 )
 from std.pathlib import Path
 from std.sys import argv
-from std.memory import memcpy
+from std.memory import unsafe_memcpy
 from std.collections import List
 
-from json import loads
-from json.gpu import parse_json_gpu_from_pinned
+from json.gpu import loads, parse_json_gpu_from_pinned
 from max.gpu.host import DeviceContext
 from max.benchmark import bencher_iter_custom
 
@@ -71,7 +70,7 @@ def main() raises:
     # on a B200) so doing it once outside the Bencher is important.
     var ctx = DeviceContext()
     var h_input = ctx.enqueue_create_host_buffer[DType.uint8](n)
-    memcpy(dest=h_input.unsafe_ptr(), src=data.unsafe_ptr(), count=n)
+    unsafe_memcpy(dest=h_input.unsafe_ptr(), src=data.unsafe_ptr(), count=n)
     ctx.synchronize()
 
     # Configure max_iters based on file size so the large-file runs finish
@@ -96,22 +95,29 @@ def main() raises:
     # pinned-buffer allocation overhead that the old bench accidentally
     # included inside its timed region.
     # -----------------------------------------------------------------
-    @parameter
     @always_inline
-    def bench_from_host(mut b: Bencher) raises capturing:
-        @parameter
+    def bench_from_host(
+        mut b: Bencher,
+    ) raises {ref h_input, imm content, imm n, imm ctx, imm verbose}:
         @always_inline
-        def call_fn() raises:
-            memcpy(dest=h_input.unsafe_ptr(), src=data.unsafe_ptr(), count=n)
+        def call_fn() raises {
+            ref h_input, imm content, imm n, imm ctx, imm verbose
+        }:
+            unsafe_memcpy(
+                dest=h_input.unsafe_ptr(),
+                src=content.as_bytes().unsafe_ptr(),
+                count=n,
+            )
             var result = parse_json_gpu_from_pinned(
                 ctx, h_input, n, verbose=verbose
             )
             _ = len(result.structural)
 
-        b.iter[call_fn]()
+        b.iter(call_fn)
 
-    bench.bench_function[bench_from_host](
-        BenchId("json_gpu", "from host bytes: memcpy + parse (wall-clock)"),
+    bench.bench_function(
+        bench_from_host,
+        BenchId("json.gpu", "from host bytes: memcpy + parse (wall-clock)"),
         measures,
     )
 
@@ -119,21 +125,22 @@ def main() raises:
     # 2. Pinned: reuses the already-loaded pinned buffer so we skip the
     # host-side memcpy, wall-clock (matches `parse_json_gpu_from_pinned`).
     # -----------------------------------------------------------------
-    @parameter
     @always_inline
-    def bench_pinned(mut b: Bencher) raises capturing:
-        @parameter
+    def bench_pinned(
+        mut b: Bencher,
+    ) raises {imm h_input, imm n, imm ctx, imm verbose}:
         @always_inline
-        def call_fn() raises:
+        def call_fn() raises {imm h_input, imm n, imm ctx, imm verbose}:
             var result = parse_json_gpu_from_pinned(
                 ctx, h_input, n, verbose=verbose
             )
             _ = len(result.structural)
 
-        b.iter[call_fn]()
+        b.iter(call_fn)
 
-    bench.bench_function[bench_pinned](
-        BenchId("json_gpu", "parse_json_gpu_from_pinned (pinned, wall-clock)"),
+    bench.bench_function(
+        bench_pinned,
+        BenchId("json.gpu", "parse_json_gpu_from_pinned (pinned, wall-clock)"),
         measures,
     )
 
@@ -143,40 +150,41 @@ def main() raises:
     # host wall-clock. Separates pure GPU queue time from the CPU post-
     # processing (bracket matching, Value construction inside the call).
     # -----------------------------------------------------------------
-    @parameter
     @always_inline
-    def bench_pinned_device(mut b: Bencher) raises capturing:
-        @parameter
+    def bench_pinned_device(
+        mut b: Bencher,
+    ) raises {imm h_input, imm n, imm ctx, imm verbose}:
         @always_inline
-        def launch(launch_ctx: DeviceContext) raises capturing:
+        def launch(
+            launch_ctx: DeviceContext,
+        ) raises {imm h_input, imm n, imm verbose}:
             var result = parse_json_gpu_from_pinned(
                 launch_ctx, h_input, n, verbose=verbose
             )
             _ = len(result.structural)
 
-        bencher_iter_custom[launch](b, ctx)
+        bencher_iter_custom(b, launch, ctx)
 
-    bench.bench_function[bench_pinned_device](
-        BenchId("json_gpu", "parse_json_gpu_from_pinned (device-only)"),
+    bench.bench_function(
+        bench_pinned_device,
+        BenchId("json.gpu", "parse_json_gpu_from_pinned (device-only)"),
         measures,
     )
 
     # -----------------------------------------------------------------
-    # 4. Full public loads[target="gpu"] path (includes Value tree build).
+    # 4. Full public loads_gpu path (includes Value tree build).
     # -----------------------------------------------------------------
-    @parameter
     @always_inline
-    def bench_gpu_loads(mut b: Bencher) raises capturing:
-        @parameter
+    def bench_gpu_loads(mut b: Bencher) raises {imm content}:
         @always_inline
-        def call_fn() raises:
+        def call_fn() raises {imm content}:
             var v = loads[target="gpu"](content)
             _ = v.is_object()
 
-        b.iter[call_fn]()
+        b.iter(call_fn)
 
-    bench.bench_function[bench_gpu_loads](
-        BenchId("json_gpu", "loads[target='gpu']"), measures
+    bench.bench_function(
+        bench_gpu_loads, BenchId("json.gpu", "loads_gpu"), measures
     )
 
     print(bench)
