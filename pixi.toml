@@ -3,12 +3,12 @@ authors = ["ehsanmok <ehsanmok@users.noreply.github.com>"]
 channels = ["https://conda.modular.com/max", "conda-forge"]
 name = "json"
 platforms = ["linux-64", "osx-arm64"]
-version = "0.4.0"
+version = "0.4.2"
 preview = ["pixi-build"]
 
 [package]
 name = "json_mlake"
-version = "0.4.0"
+version = "0.4.2"
 
 [package.build]
 # Lower bound only, deliberately — upstream's fix, which supersedes the
@@ -20,8 +20,8 @@ version = "0.4.0"
 # away and hard-couples the repo to one pixi version: `==0.3.13` speaks
 # API 4, so every pixi newer than 0.70.2 failed to resolve this package
 # at all with "pixi-build-api-version >=4,<5, for which no candidates
-# were found". A range lets pixi 0.70.x pick 0.3.13 and newer pixi pick
-# a 0.4.x that speaks its API.
+# were found" -- see issue #3. A range lets pixi 0.70.x pick 0.3.13 and
+# newer pixi pick a 0.4.x that speaks its API.
 backend = { name = "pixi-build-rattler-build", version = ">=0.3.13" }
 
 # Binary dependencies are specified in recipe.yaml for rattler-build backend
@@ -35,7 +35,7 @@ scripts = ["json/cpu/simdjson_ffi/build.sh"]
 # version this code compiles against. That is what a run constraint is
 # for: it pins without pulling.
 [package.run-constraints]
-max-core = ">=26.5.0"
+max-core = "==26.7"
 
 # Declared so that `json = { git = "...", extras = ["gpu"] }` works the
 # day a released build backend reports extra groups. Pixi takes a source
@@ -43,14 +43,14 @@ max-core = ">=26.5.0"
 # released backend fills that field yet, so this is inert today and the
 # README documents the explicit `max-core` line instead.
 [package.extra-dependencies.gpu]
-max-core = ">=26.5.0"
+max-core = "==26.7"
 
 [dependencies]
 # Runtime + build-essential for anyone working with this repo (running tests,
 # examples, `mojo build`-ing benchmark binaries). The activation hook below
 # compiles the simdjson FFI wrapper on every env activation, so a C++ compiler
 # has to be available here, not gated behind a dev feature.
-mojo = ">=1.1.0,<2.0.0"
+mojo = ">=1.2.0,<2.0.0"
 simdjson = ">=4.2.4,<5"
 
 [target.linux-64.dependencies]
@@ -97,10 +97,10 @@ gdown = ">=5.0"           # Google Drive CLI for downloading benchmark datasets
 # a consumer of the published package gets.
 # ------------------------------------------------------------------
 [feature.gpu.dependencies]
-max-core = ">=26.5.0"
+max-core = "==26.7"
 
 [feature.fuzz.dependencies]
-mozz = { git = "https://github.com/ehsanmok/mozz.git", branch = "main" }
+mozz = { git = "https://github.com/ehsanmok/mozz.git", tag = "v0.2.2" }
 
 [environments]
 # `default` is deliberately what a consumer of the published package
