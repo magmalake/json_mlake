@@ -195,7 +195,7 @@ def _parse_owned_at(
                 String(unsafe_from_utf8=bytes[start_idx:end_idx])
             )
         var unescaped = unescape_json_string_span(bytes, start_idx, end_idx)
-        return OwnedValue.make_string(String(unsafe_from_utf8=unescaped^))
+        return OwnedValue.make_string(String(unsafe_from_utf8=unescaped))
 
     if c == UInt8(ord("-")) or (c >= UInt8(ord("0")) and c <= UInt8(ord("9"))):
         var num_start = i
@@ -565,8 +565,8 @@ def _serialize_into_value(o: OwnedValue) -> Value:
 def _owned_to_tape(o: OwnedValue) -> Document:
     """Build a `Document` whose root entry represents `o`.
 
-    Mirror of the producer protocol used by `_emit_simdjson_value`
-    (parser.mojo) and `_emit_value_to_doc` (cpu/stage2.mojo): for
+    Mirror of the producer protocol used by `emit` (the simdjson
+    wrapper) and `_emit_value_to_doc` (cpu/stage2.mojo): for
     containers we emit children's headers into a contiguous run
     before writing the parent header, and the root header is
     appended last so `Document.root()` returns its index.

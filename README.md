@@ -20,29 +20,21 @@ needs for HTTP and gRPC.
 
 ## What differs from upstream
 
-Tracks upstream **v0.3.0**. Three packaging changes, no source changes:
+Tracks upstream **v0.4.2**. Packaging only; no source changes:
 
-- **The build backend pin.** Upstream pins
-  `pixi-build-rattler-build ==0.3.13`, which requires a
-  `pixi-build-api-version` that is no longer published, so no current pixi can
-  solve it — upstream copes by pinning CI to pixi 0.70.2. The magmalake repos
-  are all on pixi 0.78.0, so this tracks `0.4.*`.
-- **`-include iterator` on the simdjson wrapper.** `simdjson.h` uses
-  `std::inserter` without including `<iterator>`; current libc++ no longer
-  supplies it transitively, so the build fails on macOS with
-  `no member named 'inserter' in namespace 'std'`.
-- **`mojodoc` dropped** from the dev feature — same dead backend pin, and it is
-  a docs generator nothing in the test suite needs. The `docs` task is
-  therefore unavailable here.
+- **The package is named `json_mlake`**; the module is still imported as
+  `json`, so consumers change no source, and switching to an official package
+  later is a one-line dependency change. The recipe's description says it is a
+  redistribution.
+- **`mojodoc` dropped** from the dev feature. It is a docs generator nothing in
+  the test suite needs, so the `docs` task is unavailable here.
+- **CI builds the package and consumes it** on linux-64 and osx-arm64, instead
+  of upstream's test matrix; upstream's docs and fuzz workflows are dropped.
 
-**One metadata correction:** upstream's `recipe.yaml` declares
-`license: Apache-2.0`, but `LICENSE`, the README badge and the README's License
-section all say MIT. This distribution declares MIT, matching the licence
-actually shipped.
-
-The package is named `json_mlake`; the module is still imported as `json`, so
-no consumer source changes and switching to an official package later is a
-one-line dependency change.
+Deltas this fork used to carry and upstream has since absorbed: the build
+backend pin (upstream now takes `pixi-build-rattler-build >=0.3.13`), the
+`-include iterator` fix on the simdjson wrapper, and the MIT licence in
+`recipe.yaml`.
 
 Upstream's README is preserved verbatim as
 [README.upstream.md](README.upstream.md).

@@ -2,12 +2,13 @@
 # Provides high-performance JSON parsing via simdjson C++ library
 # Uses OwnedDLHandle for runtime library loading
 
-from std.ffi import OwnedDLHandle, external_call
+from std.ffi import OwnedDLHandle, _get_global, external_call
 from std.os import getenv
-from std.memory import Pointer
+from std.memory import Layout, OptionalPointer, Pointer, alloc
 from std.collections.span import Span
 from std.collections import List
 from ..errors import json_parse_error, find_error_position
+from ..document import Document
 
 
 def _dl_sym[
@@ -52,6 +53,124 @@ comptime SIMDJSON_TYPE_DOUBLE: Int = 4
 comptime SIMDJSON_TYPE_STRING: Int = 5
 comptime SIMDJSON_TYPE_ARRAY: Int = 6
 comptime SIMDJSON_TYPE_OBJECT: Int = 7
+
+
+# Resolved once per process: [parse_to_tape, tape_buffers, memcpy,
+# thread_parser]. The handle is leaked so the library stays loaded and
+# the addresses stay valid. All zero means the
+# wrapper could not be loaded.
+comptime _TAPE_SYMBOLS = 4
+
+
+def _tape_cell_init() -> OptionalPointer[NoneType, UntrackedOrigin[mut=True]]:
+    var raw = alloc(Layout[Int](count=_TAPE_SYMBOLS)).unsafe_leak()
+    for i in range(_TAPE_SYMBOLS):
+        raw.unsafe_offset(i).unsafe_write(0)
+    try:
+        var path = _find_simdjson_library()
+        var lib = OwnedDLHandle(path)
+        var names = [
+            "simdjson_parse_to_tape",
+            "simdjson_tape_buffers",
+            "simdjson_memcpy_from_addr",
+            "simdjson_thread_parser",
+        ]
+        var addrs = List[Int]()
+        for name in names:
+            var sym = lib.get_symbol[NoneType](name)
+            if not sym:
+                raise Error("missing " + name)
+            addrs.append(Int(sym.value()))
+        alloc(Layout[OwnedDLHandle](count=1)).unsafe_leak().unsafe_write(lib^)
+        for k in range(_TAPE_SYMBOLS):
+            raw.unsafe_offset(k).unsafe_write(addrs[k])
+    except:
+        pass
+    return Pointer[NoneType, UntrackedOrigin[mut=True]](
+        unsafe_from_address=Int(raw)
+    )
+
+
+def _tape_cell_destroy(p: OptionalPointer[NoneType, UntrackedOrigin[mut=True]]):
+    if p:
+        Pointer[Int, MutUntrackedOrigin](
+            unsafe_from_address=Int(p.value())
+        ).unsafe_free()
+
+
+def _tape_symbol[FT: TrivialRegisterPassable](k: Int) raises -> FT:
+    var cell = Int(
+        _get_global[
+            "json_simdjson_tape", _tape_cell_init, _tape_cell_destroy
+        ]().value()
+    )
+    var addr = Pointer[Int, MutUntrackedOrigin](
+        unsafe_from_address=cell + k * 8
+    )[]
+    if addr == 0:
+        raise Error("simdjson wrapper library not available")
+    return Pointer(to=addr).unsafe_bitcast[FT]()[]
+
+
+struct SimdjsonTape:
+    """The tape-building entry points over the calling thread's parser.
+
+    The symbols are resolved once per process and no parser is created
+    or destroyed per parse, so a small document pays almost nothing
+    beyond simdjson's own work."""
+
+    var _parse_to_tape: def(Int, Int, Int) thin abi("C") -> Int
+    var _tape_buffers: def(Int, Int) thin abi("C") -> None
+    var _memcpy_from_addr: def(Int, Int, Int) thin abi("C") -> None
+    var _parser: Int
+
+    def __init__(out self) raises:
+        self._parse_to_tape = _tape_symbol[
+            def(Int, Int, Int) thin abi("C") -> Int
+        ](0)
+        self._tape_buffers = _tape_symbol[def(Int, Int) thin abi("C") -> None](
+            1
+        )
+        self._memcpy_from_addr = _tape_symbol[
+            def(Int, Int, Int) thin abi("C") -> None
+        ](2)
+        self._parser = _tape_symbol[def() thin abi("C") -> Int](3)()
+
+    def parse_to_document(self, json: String) raises -> Document:
+        """Parse `json` and lay it out as a tape in one FFI call.
+
+        Strings and keys come back unescaped in one arena that becomes the
+        document's byte source, so no string is allocated on its own.
+        """
+        var err = self._parse_to_tape(
+            self._parser, Int(json.unsafe_ptr()), json.byte_length()
+        )
+        if err != SIMDJSON_OK:
+            var pos = find_error_position(json)
+            if err == SIMDJSON_ERROR_INVALID_JSON:
+                raise Error(json_parse_error("invalid JSON syntax", json, pos))
+            elif err == SIMDJSON_ERROR_UTF8:
+                raise Error(json_parse_error("invalid UTF-8", json, pos))
+            elif err == SIMDJSON_ERROR_CAPACITY:
+                raise Error("JSON document too large (exceeds parser capacity)")
+            raise Error(json_parse_error("parse failed", json, pos))
+        var bufs = List[Int64](length=8, fill=0)
+        self._tape_buffers(self._parser, Int(bufs.unsafe_ptr()))
+        var doc = Document()
+        doc.tape = List[UInt64](length=Int(bufs[1]), fill=0)
+        self._copy(Int(doc.tape.unsafe_ptr()), bufs[0], bufs[1] * 8)
+        var arena = List[UInt8](length=Int(bufs[3]), fill=0)
+        self._copy(Int(arena.unsafe_ptr()), bufs[2], bufs[3])
+        doc.input = String(unsafe_from_utf8=arena)
+        doc.float_pool = List[Float64](length=Int(bufs[5]), fill=0.0)
+        self._copy(Int(doc.float_pool.unsafe_ptr()), bufs[4], bufs[5] * 8)
+        doc.int_pool = List[Int64](length=Int(bufs[7]), fill=0)
+        self._copy(Int(doc.int_pool.unsafe_ptr()), bufs[6], bufs[7] * 8)
+        return doc^
+
+    def _copy(self, dst: Int, src: Int64, n: Int64):
+        if n > 0:
+            self._memcpy_from_addr(dst, Int(src), Int(n))
 
 
 struct SimdjsonFFI:
@@ -204,8 +323,12 @@ struct SimdjsonFFI:
     def parse(mut self, json: String) raises -> Int:
         """Parse JSON and return root value handle."""
         var json_copy = json
-        var c_str = json_copy.as_c_string_span()
-        var ptr = Int(c_str.ptr())
+        # `as_c_string_span` appends the nul terminator simdjson's padded
+        # read relies on. Its `.ptr()` does not compile on Mojo 1.2
+        # ("recursive reference to declaration 'CStringSpan.ptr'"), so take
+        # the address from the string itself.
+        _ = json_copy.as_c_string_span()
+        var ptr = Int(json_copy.unsafe_ptr())
         var length = json_copy.byte_length()
 
         var err = self._parse(self._parser, ptr, length)
@@ -288,7 +411,7 @@ struct SimdjsonFFI:
         var bytes = List[UInt8](capacity=length)
         bytes.resize(length, 0)
         self._memcpy_from_addr(Int(bytes.unsafe_ptr()), addr, length)
-        return String(unsafe_from_utf8=bytes^)
+        return String(unsafe_from_utf8=bytes)
 
     def free_value(self, value: Int):
         """Free a value handle."""
@@ -355,7 +478,7 @@ struct SimdjsonFFI:
         var bytes = List[UInt8](capacity=length)
         bytes.resize(length, 0)
         self._memcpy_from_addr(Int(bytes.unsafe_ptr()), addr, length)
-        return String(unsafe_from_utf8=bytes^)
+        return String(unsafe_from_utf8=bytes)
 
     def object_iter_get_value(self, iter: Int) -> Int:
         """Get current object value."""
