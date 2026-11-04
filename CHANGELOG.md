@@ -5,6 +5,8 @@ Changes this distribution makes on top of
 
 ## Unreleased
 
+## 0.4.3 - 2026-11-03
+
 - The simdjson wrapper is found without `CONDA_PREFIX`: after
   `$CONDA_PREFIX/lib`, json looks next to the executable, in its `../lib`,
   and on the binary's rpath (the environment `mojo build` ran in), so a
