@@ -25,7 +25,7 @@
 context:
   name: json_mlake
   # Mirrors the upstream version this tree is synced to.
-  version: "0.4.2"
+  version: "0.4.3"
 
 package:
   name: ${{ name }}
