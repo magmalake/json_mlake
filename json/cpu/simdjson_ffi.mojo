@@ -3,12 +3,12 @@
 # Uses OwnedDLHandle for runtime library loading
 
 from std.ffi import OwnedDLHandle, _get_global, external_call
-from std.os import getenv
 from std.memory import Layout, OptionalPointer, Pointer, alloc
 from std.collections.span import Span
 from std.collections import List
 from ..errors import json_parse_error, find_error_position
 from ..document import Document
+from ._dlopen import open_library
 
 
 def _dl_sym[
@@ -27,14 +27,8 @@ def _dl_sym[
     return Pointer(to=addr).unsafe_bitcast[FT]()[]
 
 
-def _find_simdjson_library() -> String:
-    """Find the simdjson wrapper library in standard locations."""
-    # Check CONDA_PREFIX first (installed via conda/pixi)
-    var conda_prefix = getenv("CONDA_PREFIX", "")
-    if conda_prefix:
-        return conda_prefix + "/lib/libsimdjson_wrapper.so"
-    # Fallback to local build directory (development)
-    return "build/libsimdjson_wrapper.so"
+comptime _WRAPPER_FILE = "libsimdjson_wrapper.so"
+
 
 
 # Result codes from simdjson_wrapper.h
@@ -67,8 +61,7 @@ def _tape_cell_init() -> OptionalPointer[NoneType, UntrackedOrigin[mut=True]]:
     for i in range(_TAPE_SYMBOLS):
         raw.unsafe_offset(i).unsafe_write(0)
     try:
-        var path = _find_simdjson_library()
-        var lib = OwnedDLHandle(path)
+        var lib = open_library("json", _WRAPPER_FILE)
         var names = [
             "simdjson_parse_to_tape",
             "simdjson_tape_buffers",
@@ -108,6 +101,9 @@ def _tape_symbol[FT: TrivialRegisterPassable](k: Int) raises -> FT:
         unsafe_from_address=cell + k * 8
     )[]
     if addr == 0:
+        # Open it again for the reason: it names every place searched and
+        # says to set CONDA_PREFIX.
+        _ = open_library("json", _WRAPPER_FILE)
         raise Error("simdjson wrapper library not available")
     return Pointer(to=addr).unsafe_bitcast[FT]()[]
 
@@ -219,12 +215,15 @@ struct SimdjsonFFI:
         """Initialize by loading the simdjson wrapper library.
 
         Args:
-            lib_path: Path to the library. If empty, searches standard locations:
-                      1. $CONDA_PREFIX/lib/libsimdjson_wrapper.so (installed).
-                      2. build/libsimdjson_wrapper.so (development).
+            lib_path: Path to the library. If empty, `_dlopen.open_library`
+                      searches $CONDA_PREFIX/lib, next to the executable and
+                      its ../lib, then the binary's rpath, and raises an
+                      Error saying to set CONDA_PREFIX if none has it.
         """
-        var path = lib_path if lib_path else _find_simdjson_library()
-        self._lib = OwnedDLHandle(path)
+        if lib_path:
+            self._lib = OwnedDLHandle(lib_path)
+        else:
+            self._lib = open_library("json", _WRAPPER_FILE)
 
         # Parser functions
         self._create_parser = _dl_sym[def() thin abi("C") -> Int](

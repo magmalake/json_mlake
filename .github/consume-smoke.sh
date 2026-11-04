@@ -35,11 +35,18 @@ TOML
 
 cat > smoke.mojo <<'MOJO'
 from json import *
+from json.cpu.simdjson_ffi import SimdjsonFFI
 
-def main():
+def main() raises:
     print("json_mlake: module 'json' resolved from the package with no -I")
+    _ = SimdjsonFFI()
+    var v = loads('{"a": [1, 2, 3]}')
+    print("json_mlake: libsimdjson_wrapper.so loaded, parsed", dumps(v))
 MOJO
 
 pixi install
 pixi run mojo build smoke.mojo -o ./smoke
 ./smoke
+# From a plain shell, as a deployed binary runs: with no CONDA_PREFIX the
+# wrapper is found through the binary's rpath (the environment it built in).
+env -u CONDA_PREFIX ./smoke

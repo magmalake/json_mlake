@@ -20,7 +20,16 @@ needs for HTTP and gRPC.
 
 ## What differs from upstream
 
-Tracks upstream **v0.4.2**. Packaging only; no source changes:
+Tracks upstream **v0.4.2**. Packaging, and one source delta:
+
+- **The simdjson wrapper is found without `CONDA_PREFIX`**
+  (`json/cpu/_dlopen.mojo`, the library search every magmalake tin that
+  loads a library shares): `$CONDA_PREFIX/lib`, the executable's directory
+  and its `../lib`, then the binary's rpath, so a binary built under pixi
+  runs from a plain shell. A missing wrapper is an Error saying to set
+  `CONDA_PREFIX`. Upstream falls back to `build/libsimdjson_wrapper.so`
+  relative to the working directory, which this drops. Worth sending
+  upstream.
 
 - **The package is named `json_mlake`**; the module is still imported as
   `json`, so consumers change no source, and switching to an official package
