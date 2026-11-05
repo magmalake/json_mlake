@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  # macOS runs here, nightly and by hand (Actions > CI > Run workflow), not on
+  # PRs or main: GitHub's hosted macOS pool is short on capacity, and a job
+  # that never gets a runner fails the required `ci` gate.
+  schedule:
+    - cron: '30 7 * * *'
+  workflow_dispatch:
 
 # This repository is a *distribution* of an upstream project, not its
 # development home, so CI asks the question a distribution has to answer:
@@ -36,7 +42,7 @@ jobs:
         # ubuntu-latest is linux-64, macos-latest is osx-arm64 — the two
         # platforms magmalake ships. linux-64 matters because the taxibench
         # containers are built there.
-        os: ${{ fromJSON(needs.release.outputs.release_only == 'true' && '["ubuntu-latest"]' || '["ubuntu-latest", "macos-latest"]') }}
+        os: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["ubuntu-latest", "macos-latest"]' || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@v4
 
@@ -86,7 +92,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(needs.release.outputs.release_only == 'true' && '["ubuntu-latest"]' || '["ubuntu-latest", "macos-latest"]') }}
+        os: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["ubuntu-latest", "macos-latest"]' || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@v4
 
@@ -111,7 +117,7 @@ jobs:
   # The one check to require: every job above passed or, on a release-only PR,
   # was skipped in favour of the release job's consumer build.
   ci:
-    if: ${{ always() }}
+    if: ${{ always() && github.event_name != 'schedule' }}
     needs: [release, package, consume]
     runs-on: ubuntu-latest
     steps:
