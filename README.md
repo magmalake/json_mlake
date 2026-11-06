@@ -20,7 +20,25 @@ needs for HTTP and gRPC.
 
 ## What differs from upstream
 
-Tracks upstream **v0.4.2**. Packaging, and one source delta:
+Tracks upstream **v0.4.2**. Packaging, and these source deltas:
+
+- **A span scan, `json/ondemand.mojo`** (magmalake/json_mlake#5):
+  `scan(span)` / `scan_lines(span)` return `RawValue`s, a value's byte
+  range in the caller's buffer plus its kind, like simdjson On-Demand's
+  `raw_json()`. Key and path lookups (`v["payload"]`,
+  `v.path("payload.pull_request.base.repo.language")`, `v.fields([...])`
+  for several keys in one walk) step over unwanted values 64 bytes at a
+  time with stage 1's escape and in-string masks, and allocate nothing.
+  It validates lazily, as On-Demand does: walked punctuation, read
+  strings and numbers; `validate()` checks a value with the parser's
+  rules. Written to go upstream: one new module, its exports, a test
+  file (`tests/test_scan.mojo`, in `tests-cpu`), a fuzz target
+  (`fuzz/fuzz_scan.mojo`) and a benchmark (`bench-scan`).
+- **Parse-error context is always valid UTF-8** (`json/errors.mojo`):
+  the "Near:" window could cut a character in two, or quote a document
+  that isn't UTF-8, and build an ill-formed `String` (an assertion under
+  `-D ASSERT=all`). Such a window now shows its non-ASCII bytes as
+  `\xHH`. Found by fuzzing the span scan; worth sending upstream.
 
 - **The simdjson wrapper is found without `CONDA_PREFIX`**
   (`json/cpu/_dlopen.mojo`, the library search every magmalake tin that
