@@ -126,7 +126,7 @@ build = "bash json/cpu/simdjson_ffi/build.sh"
 tests = "mojo -I . tests/test_value.mojo && mojo -I . tests/test_value_build_scaling.mojo && mojo -I . tests/test_writer.mojo && mojo -I . tests/test_parser.mojo && mojo -I . tests/test_serialize.mojo && mojo -I . tests/test_serde.mojo && mojo -I . tests/test_reflection.mojo && mojo -I . tests/test_e2e.mojo && mojo -I . examples/basic/parsing.mojo && mojo -I . examples/basic/file_io.mojo && mojo -I . examples/basic/value_types.mojo && mojo -I . examples/basic/error_handling.mojo && mojo -I . examples/intermediate/reflection_serde.mojo && mojo -I . examples/intermediate/struct_serde.mojo && mojo -I . examples/intermediate/ndjson.mojo && mojo -I . examples/intermediate/jsonpath.mojo && mojo -I . examples/intermediate/schema_validation.mojo && mojo -I . examples/intermediate/json_patch.mojo && mojo -I . examples/advanced/lazy_parsing.mojo"
 # tests-cpu: full CPU suite. `loads(target='cpu')` routes through the
 # tape-backed Value view, so this is also the tape conformance suite.
-tests-cpu = "mojo -I . tests/test_value.mojo && mojo -I . tests/test_parser.mojo && mojo -I . tests/test_serialize.mojo && mojo -I . tests/test_serde.mojo && mojo -I . tests/test_reflection.mojo && mojo -I . tests/test_jsonpath.mojo && mojo -I . tests/test_patch.mojo && mojo -I . tests/test_schema.mojo && mojo -I . tests/test_value_mutation.mojo && mojo -I . tests/test_value_build_scaling.mojo && mojo -I . tests/test_writer.mojo && mojo -I . tests/test_stage1_equivalence.mojo && mojo -I . tests/test_backend_equivalence.mojo && mojo -I . tests/test_document.mojo && mojo -I . tests/test_stage2_tape.mojo && mojo -I . tests/test_api.mojo && mojo -I . tests/test_reader.mojo && mojo -I . tests/test_float_format.mojo && mojo -I . tests/test_validate.mojo && mojo -I . tests/test_number_parse.mojo && mojo -I . tests/test_conformance.mojo && mojo -I . tests/test_pointer_patch_conformance.mojo && mojo -I . tests/test_regex.mojo && mojo -I . tests/test_schema_conformance.mojo && mojo -I . tests/test_e2e.mojo && mojo -I . examples/basic/parsing.mojo && mojo -I . examples/basic/file_io.mojo && mojo -I . examples/basic/value_types.mojo && mojo -I . examples/basic/error_handling.mojo && mojo -I . examples/advanced/lazy_parsing.mojo && mojo -I . examples/intermediate/jsonpath.mojo && mojo -I . examples/intermediate/schema_validation.mojo && mojo -I . examples/intermediate/json_patch.mojo && mojo -I . examples/intermediate/reflection_serde.mojo && mojo -I . examples/intermediate/struct_serde.mojo && mojo -I . examples/intermediate/ndjson.mojo"
+tests-cpu = "mojo -I . tests/test_value.mojo && mojo -I . tests/test_parser.mojo && mojo -I . tests/test_serialize.mojo && mojo -I . tests/test_serde.mojo && mojo -I . tests/test_reflection.mojo && mojo -I . tests/test_jsonpath.mojo && mojo -I . tests/test_patch.mojo && mojo -I . tests/test_schema.mojo && mojo -I . tests/test_value_mutation.mojo && mojo -I . tests/test_value_build_scaling.mojo && mojo -I . tests/test_writer.mojo && mojo -I . tests/test_stage1_equivalence.mojo && mojo -I . tests/test_backend_equivalence.mojo && mojo -I . tests/test_document.mojo && mojo -I . tests/test_stage2_tape.mojo && mojo -I . tests/test_api.mojo && mojo -I . tests/test_reader.mojo && mojo -I . tests/test_scan.mojo && mojo -I . tests/test_float_format.mojo && mojo -I . tests/test_validate.mojo && mojo -I . tests/test_number_parse.mojo && mojo -I . tests/test_conformance.mojo && mojo -I . tests/test_pointer_patch_conformance.mojo && mojo -I . tests/test_regex.mojo && mojo -I . tests/test_schema_conformance.mojo && mojo -I . tests/test_e2e.mojo && mojo -I . examples/basic/parsing.mojo && mojo -I . examples/basic/file_io.mojo && mojo -I . examples/basic/value_types.mojo && mojo -I . examples/basic/error_handling.mojo && mojo -I . examples/advanced/lazy_parsing.mojo && mojo -I . examples/intermediate/jsonpath.mojo && mojo -I . examples/intermediate/schema_validation.mojo && mojo -I . examples/intermediate/json_patch.mojo && mojo -I . examples/intermediate/reflection_serde.mojo && mojo -I . examples/intermediate/struct_serde.mojo && mojo -I . examples/intermediate/ndjson.mojo"
 verify-cpu-only = "bash tools/verify_cpu_only.sh"
 tests-e2e = "mojo -I . tests/test_e2e.mojo"
 
@@ -185,6 +185,7 @@ download-wiki-large = "gdown -O benchmark/datasets/wiki_large_record.json 1bXdzh
 # the production-build convention used by other Mojo libraries.
 build-bench-cpu = { cmd = "mkdir -p benchmark/build && mojo build -D ASSERT=none -I . -o benchmark/build/bench_cpu benchmark/mojo/bench_cpu.mojo", depends-on = ["build"] }
 build-bench-build = { cmd = "mkdir -p benchmark/build && mojo build -D ASSERT=none -I . -o benchmark/build/bench_build benchmark/mojo/bench_build.mojo", depends-on = ["build"] }
+build-bench-scan = { cmd = "mkdir -p benchmark/build && mojo build -D ASSERT=none -I . -o benchmark/build/bench_scan benchmark/mojo/bench_scan.mojo", depends-on = ["build"] }
 build-bench-serde = { cmd = "mkdir -p benchmark/build && mojo build -D ASSERT=none -I . -o benchmark/build/bench_serde benchmark/mojo/bench_serde.mojo", depends-on = ["build"] }
 build-bench-simdjson = { cmd = "bash -c 'mkdir -p benchmark/build && CXX=$(if [[ $(uname) == Darwin ]]; then echo clang++; else echo g++; fi) && $CXX -O3 -std=c++17 -o benchmark/build/bench_simdjson benchmark/cpp/bench_simdjson.cpp -I$CONDA_PREFIX/include -L$CONDA_PREFIX/lib -lsimdjson -Wl,-rpath,$CONDA_PREFIX/lib'", depends-on = ["build"] }
 
@@ -198,6 +199,9 @@ bench-build = { cmd = "benchmark/build/bench_build", depends-on = ["build-bench-
 # Typed serde benchmark: serialize_json / deserialize_json against the
 # Value-tree round trip, over five record shapes at n = 1 and n = 100.
 # Pass --json for machine-readable output.
+# Span scan benchmark over a JSON Lines file (a GH Archive hour):
+#   pixi run -e dev bench-scan path/to/hour.json [runs] [--no-dom]
+bench-scan = { cmd = "bash -c 'benchmark/build/bench_scan \"$@\"' _", depends-on = ["build-bench-scan"] }
 bench-serde = { cmd = "bash -c 'benchmark/build/bench_serde \"$@\"' _", depends-on = ["build-bench-serde"] }
 
 
@@ -257,4 +261,5 @@ fuzz-simdjson       = "mojo -I . fuzz/fuzz_simdjson_ffi.mojo"
 fuzz-value-access   = "mojo -I . fuzz/fuzz_value_access.mojo"
 fuzz-jsonpath       = "mojo -I . fuzz/fuzz_jsonpath.mojo"
 fuzz-ndjson         = "mojo -I . fuzz/fuzz_ndjson.mojo"
-fuzz-all            = { depends-on = ["fuzz-loads", "fuzz-simdjson", "fuzz-value-access", "fuzz-jsonpath", "fuzz-ndjson"] }
+fuzz-scan           = "mojo -I . fuzz/fuzz_scan.mojo"
+fuzz-all            = { depends-on = ["fuzz-loads", "fuzz-simdjson", "fuzz-value-access", "fuzz-jsonpath", "fuzz-ndjson", "fuzz-scan"] }

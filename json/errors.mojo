@@ -1,4 +1,5 @@
 from std.collections import List
+from std.collections.string._utf8 import _is_valid_utf8
 
 # Parse error formatting.
 #
@@ -114,6 +115,22 @@ def format_error_context(
         out.append(UInt8(ord(".")))
         out.append(UInt8(ord(".")))
 
+    # The window can cut a character in two, and the document need not
+    # be UTF-8 at all (the error may be about exactly that). A `String`
+    # must be, so a window that is not shows its non-ASCII bytes as
+    # `\xHH` instead.
+    if not _is_valid_utf8(out):
+        comptime hex = "0123456789ABCDEF"
+        var escaped = List[UInt8](capacity=len(out) * 2)
+        for c in out:
+            if c < 0x80:
+                escaped.append(c)
+                continue
+            escaped.append(UInt8(ord("\\")))
+            escaped.append(UInt8(ord("x")))
+            escaped.append(hex.as_bytes()[Int(c >> 4)])
+            escaped.append(hex.as_bytes()[Int(c & 0x0F)])
+        return String(unsafe_from_utf8=escaped)
     return String(unsafe_from_utf8=out)
 
 

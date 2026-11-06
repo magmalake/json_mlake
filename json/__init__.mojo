@@ -25,6 +25,13 @@
   `JsonDeserializable` on the containing struct for those.
 - **RFC-compliant queries.** JSONPath (RFC 9535), JSON Patch
   (RFC 6902), JSON Merge Patch (RFC 7396), JSON Schema validation.
+- **A span scan for picking fields out of bytes.** `scan(span)` and
+  `scan_lines(span)` hand back `RawValue`s: a value's byte range in the
+  caller's buffer and its kind, like simdjson On-Demand's `raw_json()`.
+  Looking up `event["payload"]["pull_request"]` walks the members and
+  steps over the values it skips sixty-four bytes at a time; nothing
+  is copied and nothing is allocated. `validate()` checks a value in
+  full when that matters.
 - **A writer for the hot path.** `JsonWriter` is the buffered byte sink
   every serializer emits into, and is public: when the shape is known
   ahead of time, writing into it directly is the fastest route out.
@@ -138,6 +145,19 @@ from .schema import (
 # Streaming/lazy parsing (CPU only).
 from .lazy import LazyValue
 from .streaming import StreamingParser, ArrayStreamingParser
+
+# Span scan: value byte ranges out of borrowed bytes, no DOM (simdjson
+# On-Demand style).
+from .ondemand import (
+    RawElements,
+    RawKind,
+    RawLines,
+    RawMember,
+    RawMembers,
+    RawValue,
+    scan,
+    scan_lines,
+)
 
 # Byte-level serialization sink.
 from .reader import JsonReader

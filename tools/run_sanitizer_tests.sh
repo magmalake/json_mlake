@@ -87,6 +87,7 @@ ASAN_TESTS=(
   "tests/test_value_mutation.mojo"
   # Two-pass CPU parser (stage 1 + stage 2 walker, UnsafePointer math)
   "tests/test_parser.mojo"
+  "tests/test_scan.mojo"
   "tests/test_stage1_equivalence.mojo"
   # simdjson FFI boundary
   "tests/test_backend_equivalence.mojo"

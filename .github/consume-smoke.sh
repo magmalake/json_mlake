@@ -42,6 +42,17 @@ def main() raises:
     _ = SimdjsonFFI()
     var v = loads('{"a": [1, 2, 3]}')
     print("json_mlake: libsimdjson_wrapper.so loaded, parsed", dumps(v))
+    var text = String('{"id":"1","payload":{"a":[1,"}"]}}\n{"id":"2"}\n')
+    var n = 0
+    var payload = String()
+    for line in scan_lines(text.as_bytes()):
+        line.validate()
+        if n == 0:
+            payload = String(line["payload"])
+        n += 1
+    if n != 2 or payload != '{"a":[1,"}"]}':
+        raise Error("json_mlake: span scan returned the wrong ranges")
+    print("json_mlake: span scan read", n, "records; payload", payload)
 MOJO
 
 pixi install
