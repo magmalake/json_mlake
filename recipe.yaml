@@ -1,26 +1,16 @@
 # rattler-build recipe for json
-# Distributes json as its *source* tree under $PREFIX/lib/mojo/ rather than
-# as a pre-compiled .mojopkg artifact — same shape as ehsanmok/sqlite.
-# Consumers' Mojo resolves ``from json import ...`` directly from these
-# source files at their own compile time.
+# Ships json as a precompiled `json.mojoc` under $PREFIX/lib/mojo/, plus the
+# simdjson FFI shared object. Consumers' Mojo loads the .mojoc instead of
+# parsing the source tree on every build (census #153: flare and json from
+# source were 43% of a no-change census rebuild's frontend).
 #
-# Why source-level distribution rather than ``mojo package``:
-#   1. A ``.mojopkg`` produced by ``mojo package`` embeds the exact
-#      compiler version it was built with and refuses to load against any
-#      other version (``Mojo package is incompatible: package version X is
-#      newer/older than compiler version Y``). That tightly couples the
-#      published .conda artifact to a specific Mojo nightly, so even a
-#      benign Mojo bump on the consumer side invalidates the artifact
-#      overnight.
-#   2. ``mojo package`` also adds an extra Mojo run during the recipe
-#      build, which a stale build cache or a pre-release Mojo nightly can
-#      break in ways unrelated to json's own source.
-# Source distribution sidesteps both: the .conda has zero ABI-locked
-# binary content from Mojo, only the source files plus the simdjson FFI
-# shared object. The ``run: mojo == ...`` pin in the requirements still
-# tells solvers which compiler to install — the difference is the lock
-# now lives where it's easy to update (a one-line bump in this recipe),
-# not embedded in a binary blob.
+# A .mojoc only loads in the compiler version that built it, so the build
+# pins `mojo-compiler` exactly. Every other magmalake tin already does this
+# and moves in lockstep with Mojo releases; json now moves with them.
+#
+# `json.gpu` is left out of the .mojoc: it imports `max`, and a .mojoc
+# resolves every import when it loads, so including it would make max-core a
+# requirement of `import json`. GPU users build json from source.
 
 context:
   name: json_mlake
@@ -37,10 +27,11 @@ source:
 build:
   script:
     - mkdir -p $PREFIX/lib/mojo
-    # ── Source tree (consumed via Mojo's import path) ────────────────────
-    # Mojo discovers this the same way it discovers .mojopkg files in
-    # that directory; no ``mojo package`` step required.
-    - cp -r json $PREFIX/lib/mojo/
+    # ── json.mojoc, without json/gpu (see the header) ────────────────────
+    - mkdir -p _stage
+    - cp -r json _stage/
+    - rm -rf _stage/json/gpu
+    - mojo precompile _stage/json -o $PREFIX/lib/mojo/json.mojoc
     # ── simdjson FFI wrapper (loaded at runtime by json) ─────────────────
     - mkdir -p $PREFIX/lib
     # ``-include iterator``: simdjson.h uses ``std::inserter`` without including
@@ -57,10 +48,11 @@ build:
 requirements:
   build:
     - ${{ compiler('cxx') }}
+    - mojo-compiler ==1.2.0
   host:
     - simdjson >=4.2.4,<5
   run:
-    - mojo >=1.2.0,<2.0.0
+    - mojo-compiler >=1.2.0,<2
     - simdjson >=4.2.4,<5
   # Not a dependency. `json/gpu/` imports `max.gpu`, which ships in
   # `max-core`, but nothing on the CPU import graph names `json.gpu`,
@@ -101,10 +93,9 @@ about:
     json is a high-performance JSON parsing library for Mojo.
     Features include:
     - Fast CPU parsing via simdjson FFI
-    - Optional GPU-accelerated parsing for large files: import
-      json.gpu and add max-core to your own dependencies. That package
-      is governed by the Modular Community License, so it is opt-in and
-      is not a dependency of this one.
+    - GPU-accelerated parsing for large files, from source only:
+      `json.gpu` needs max-core (Modular Community License) and is not
+      in this package's precompiled json.mojoc.
     - Full JSON compliance (RFC 8259)
     - JSONPath queries
     - JSON Schema validation

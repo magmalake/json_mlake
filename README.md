@@ -22,6 +22,11 @@ needs for HTTP and gRPC.
 
 Tracks upstream **v0.4.2**. Packaging, and these source deltas:
 
+- **The package ships a precompiled `json.mojoc`**, not the source tree,
+  so consumers stop re-parsing json on every build. `json.gpu` is not in
+  it: it imports `max`, and a `.mojoc` resolves every import when it
+  loads. Build json from source for the GPU path.
+
 - **A span scan, `json/ondemand.mojo`** (magmalake/json_mlake#5):
   `scan(span)` / `scan_lines(span)` return `RawValue`s, a value's byte
   range in the caller's buffer plus its kind, like simdjson On-Demand's
