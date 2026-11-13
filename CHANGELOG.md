@@ -5,6 +5,8 @@ Changes this distribution makes on top of
 
 ## Unreleased
 
+- The package installs a precompiled `json.mojoc` instead of the source tree;
+  `json.gpu` is not in it (build from source for GPU). (#9)
 - A span scan, `json.ondemand` (exported from `json`): `scan(span)` and
   `scan_lines(span)` turn borrowed bytes into `RawValue`s, each a
   value's `[start, end)` in the buffer and its `RawKind`, without
