@@ -5,6 +5,8 @@ Changes this distribution makes on top of
 
 ## Unreleased
 
+## 0.5.0 - 2026-11-13
+
 - The package installs a precompiled `json.mojoc` instead of the source tree;
   `json.gpu` is not in it (build from source for GPU). (#9)
 - A span scan, `json.ondemand` (exported from `json`): `scan(span)` and
