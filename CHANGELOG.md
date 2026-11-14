@@ -5,6 +5,8 @@ Changes this distribution makes on top of
 
 ## Unreleased
 
+## 0.5.1 - 2026-11-14
+
 - The package records its own version again: 0.5.0's recipe still said
   0.4.3, so installs and pixi locks named the wrong release. CI now fails
   when recipe.yaml, pixi.toml and shelf.toml disagree.
