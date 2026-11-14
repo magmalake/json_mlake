@@ -31,6 +31,16 @@ jobs:
     with:
       classify-only: true
 
+  # rattler-build takes the package version from recipe.yaml, while
+  # `shelf release` bumps only shelf.toml and pixi.toml, so a release that
+  # misses the recipe ships the old version number (0.5.0 said 0.4.3). Runs on
+  # release PRs too: that is where the mismatch appears.
+  versions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 .github/check-versions.py
+
   package:
     needs: release
     if: ${{ !cancelled() }}
@@ -118,7 +128,7 @@ jobs:
   # was skipped in favour of the release job's consumer build.
   ci:
     if: ${{ always() && github.event_name != 'schedule' }}
-    needs: [release, package, consume]
+    needs: [release, versions, package, consume]
     runs-on: ubuntu-latest
     steps:
       - env:

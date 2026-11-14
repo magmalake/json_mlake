@@ -5,6 +5,10 @@ Changes this distribution makes on top of
 
 ## Unreleased
 
+- The package records its own version again: 0.5.0's recipe still said
+  0.4.3, so installs and pixi locks named the wrong release. CI now fails
+  when recipe.yaml, pixi.toml and shelf.toml disagree.
+
 ## 0.5.0 - 2026-11-13
 
 - The package installs a precompiled `json.mojoc` instead of the source tree;

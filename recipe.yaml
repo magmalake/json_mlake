@@ -14,8 +14,9 @@
 
 context:
   name: json_mlake
-  # Mirrors the upstream version this tree is synced to.
-  version: "0.4.3"
+  # Must equal shelf.toml and pixi.toml; .github/check-versions.py fails CI
+  # otherwise (`shelf release` bumps only those two).
+  version: "0.5.1"
 
 package:
   name: ${{ name }}
