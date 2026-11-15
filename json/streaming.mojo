@@ -5,7 +5,7 @@
 
 from std.collections import List
 from .value import Value
-from .parser import loads
+from .cpu import parse_cpu_native_tape
 
 
 struct StreamingParser:
@@ -103,7 +103,7 @@ struct StreamingParser:
         if _is_empty_line(line):
             raise Error("No more JSON values")
 
-        return loads[target="cpu"](line)
+        return parse_cpu_native_tape(line)
 
     def _read_chunk(mut self) raises:
         """Read a chunk of data from the file."""
@@ -449,7 +449,7 @@ struct ArrayStreamingParser:
         var remainder = String(unsafe_from_utf8=self._buffer.as_bytes()[end:])
         self._buffer = remainder^
 
-        return loads[target="cpu"](element_str)
+        return parse_cpu_native_tape(element_str)
 
 
 def _is_empty_line(s: String) -> Bool:

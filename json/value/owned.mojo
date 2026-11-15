@@ -28,7 +28,6 @@ from .node import (
     OWNED_OBJECT,
 )
 from .raw_ops import escape_json_string
-from .value import Value, Null, make_view_value
 from ..writer import JsonWriter
 from ..document import (
     Document,
@@ -53,30 +52,6 @@ from ..unicode import unescape_json_string, unescape_json_string_span
 # ---------------------------------------------------------------------------
 # Value <-> OwnedValue conversion
 # ---------------------------------------------------------------------------
-
-
-def _value_to_owned(v: Value) raises -> OwnedValue:
-    """Convert a `Value` to an `OwnedValue` tree.
-
-    A value already holding an owned tree hands back a copy. A
-    tape-backed view walks `Document.tape` directly via
-    `_view_to_owned` -- no JSON serialization, no parsing.
-    """
-    if not v._is_view():
-        return v._owned.copy()
-    if v.is_null():
-        return OwnedValue.make_null()
-    if v.is_bool():
-        return OwnedValue.make_bool(v.bool_value())
-    if v.is_int():
-        return OwnedValue.make_int(v.int_value())
-    if v.is_float():
-        return OwnedValue.make_float(v.float_value())
-    if v.is_string():
-        return OwnedValue.make_string(v.string_value())
-    if v.is_array() or v.is_object():
-        return _view_to_owned(v._doc.value(), v._tape_idx)
-    raise Error("Unknown Value kind in _value_to_owned")
 
 
 def _view_to_owned(
@@ -528,38 +503,6 @@ def _escape_json_string(s: String) -> String:
     JSON while the same value from a tape did not.
     """
     return escape_json_string(s)
-
-
-# ---------------------------------------------------------------------------
-# Value mutation through OwnedValue
-# ---------------------------------------------------------------------------
-
-
-def _materialize_for_write(v: Value) raises -> OwnedValue:
-    """Convert a Value into an OwnedValue tree for in-place mutation.
-
-    This is the entry point for the COW path: callers materialize the
-    tree, mutate it, then call `_serialize_into_value` to fold the
-    result back into a `Value` whose `_raw` reflects the change.
-    """
-    return _value_to_owned(v)
-
-
-def _serialize_into_value(o: OwnedValue) -> Value:
-    """Serialize an `OwnedValue` into a tape-backed `Value` view.
-
-    Builds a fresh `Document` from the OwnedValue tree (no JSON
-    string round-trip, no parsing) and returns a view over it. The
-    layout matches what the CPU and FFI parsers emit, so callers
-    don't need to care which source produced the value.
-
-    Used by `Value.set` / `Value.append` / `Value.set_at` to fold
-    mutations back into a `Value`.
-    """
-    var doc = _owned_to_tape(o)
-    var root_idx = doc.root()
-    var arc = ArcPointer[Document](doc^)
-    return make_view_value(arc, root_idx)
 
 
 def _owned_to_tape(o: OwnedValue) -> Document:

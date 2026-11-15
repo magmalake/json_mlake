@@ -474,4 +474,4 @@ from .streaming import StreamingParser
 from .errors import json_parse_error
 from .unicode import unescape_json_string, unescape_json_string_span
 from .config import preprocess_json
-from .ndjson import _split_lines, _is_whitespace_only
+from ._lines import _split_lines, _is_whitespace_only

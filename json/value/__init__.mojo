@@ -44,10 +44,12 @@ from .node import (
     OWNED_OBJECT,
 )
 from .owned import (
-    _value_to_owned,
     _parse_owned_value,
     _owned_to_json,
+    _set_at_pointer,
+)
+from .value import (
+    _value_to_owned,
     _materialize_for_write,
     _serialize_into_value,
-    _set_at_pointer,
 )
