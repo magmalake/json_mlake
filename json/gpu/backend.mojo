@@ -22,10 +22,9 @@ from std.collections import List
 from std.memory import unsafe_memcpy
 
 from ..errors import json_parse_error
+from .._lines import _is_whitespace_only, _split_lines
 from ..parser import (
-    _is_whitespace_only,
     _list_to_array_value,
-    _split_lines,
     load as cpu_load,
     loads as cpu_loads,
     parse_number_scalar,
