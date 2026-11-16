@@ -263,3 +263,11 @@ fuzz-jsonpath       = "mojo -I . fuzz/fuzz_jsonpath.mojo"
 fuzz-ndjson         = "mojo -I . fuzz/fuzz_ndjson.mojo"
 fuzz-scan           = "mojo -I . fuzz/fuzz_scan.mojo"
 fuzz-all            = { depends-on = ["fuzz-loads", "fuzz-simdjson", "fuzz-value-access", "fuzz-jsonpath", "fuzz-ndjson", "fuzz-scan"] }
+
+# customs (github.com/magmalake/customs) reads this table; pixi ignores it.
+[tool.customs.lints]
+# `tests` and `tests-cpu` run each test file with its own `mojo` run. They
+# are upstream's (ehsanmok/json) tasks and tests, kept as upstream has them
+# in this redistribution, and CI here doesn't run them: a warning, not a
+# failure.
+mojo-run-per-test = "warn"
