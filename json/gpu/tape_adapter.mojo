@@ -35,7 +35,6 @@
 # requires `max-core`, which is governed by the Modular Community
 # License. See `json/gpu/LICENSE-GPU.md`.
 
-from std.collections import List
 from std.memory import ArcPointer
 
 from ..value import Value

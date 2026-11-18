@@ -14,7 +14,6 @@ from std.collections import List
 from .pointer import array_index, index_value, parse_pointer
 from .value import Value, Null
 from .parser import loads
-from .serialize import dumps
 
 
 # =============================================================================

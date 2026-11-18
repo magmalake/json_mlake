@@ -3,7 +3,7 @@
 # Demonstrates: Value type checking and value extraction
 
 from json import loads, dumps, Value, Null
-from std.collections import Dict, List
+from std.collections import Dict
 
 
 def main() raises:

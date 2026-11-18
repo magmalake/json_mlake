@@ -4,9 +4,7 @@ from std.memory import unsafe_memcpy
 
 from .types import (
     JSONResult,
-    JSONInput,
     is_open_bracket,
-    is_close_bracket,
     CHAR_QUOTE,
 )
 from .unicode import unescape_json_string

@@ -2,7 +2,7 @@
 #
 # Demonstrates: loads() and dumps() for string-based JSON operations
 
-from json import loads, dumps, Value
+from json import loads, dumps
 
 
 def main() raises:

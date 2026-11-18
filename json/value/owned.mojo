@@ -46,7 +46,7 @@ from ..document import (
     TAPE_TAG_OBJECT,
     TAPE_TAG_KEY,
 )
-from ..unicode import unescape_json_string, unescape_json_string_span
+from ..unicode import unescape_json_string_span
 
 
 # ---------------------------------------------------------------------------

@@ -45,8 +45,6 @@
 #      `follows_escape` to keep only positions that actually follow a
 #      backslash.
 
-from std.sys.intrinsics import llvm_intrinsic
-
 
 # ---------------------------------------------------------------------------
 # Software prefix-XOR (six shifts).

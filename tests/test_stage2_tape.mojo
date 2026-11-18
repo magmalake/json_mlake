@@ -16,7 +16,6 @@ from std.testing import (
     assert_equal,
     assert_true,
     assert_false,
-    assert_raises,
     TestSuite,
 )
 from std.collections import List

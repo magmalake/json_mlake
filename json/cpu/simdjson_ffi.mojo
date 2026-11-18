@@ -2,9 +2,8 @@
 # Provides high-performance JSON parsing via simdjson C++ library
 # Uses OwnedDLHandle for runtime library loading
 
-from std.ffi import OwnedDLHandle, _get_global, external_call
+from std.ffi import OwnedDLHandle, _get_global
 from std.memory import Layout, OptionalPointer, Pointer, alloc
-from std.collections.span import Span
 from std.collections import List
 from ..errors import json_parse_error, find_error_position
 from ..document import Document

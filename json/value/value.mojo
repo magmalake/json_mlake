@@ -65,7 +65,6 @@ from ..document import (
     TAPE_TAG_KEY_INLINE,
     TAPE_TAG_ARRAY,
     TAPE_TAG_OBJECT,
-    TAPE_TAG_KEY,
 )
 
 

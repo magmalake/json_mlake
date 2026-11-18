@@ -39,7 +39,7 @@ from std.collections import Optional, List, Dict
 from std.memory import MaybeUninit
 
 from .reader import JsonReader
-from .value import Value, Null
+from .value import Value
 from .value.value import write_value
 from .writer import JsonWriter
 from .parser import loads

@@ -50,15 +50,15 @@ prelude is the "first ten lines of code" surface, not the kitchen sink.
 """
 
 # Core entry points.
-from .parser import loads, load
-from .serialize import dumps, dump
-from .config import ParserConfig, SerializerConfig
+from ..parser import loads, load
+from ..serialize import dumps, dump
+from ..config import ParserConfig, SerializerConfig
 
 # Value view + null sentinel.
-from .value import Value, Null
+from ..value import Value, Null
 
 # Reflection serde -- the zero-boilerplate path most apps use.
-from .reflection import (
+from ..reflection import (
     serialize_json,
     serialize_value,
     deserialize_json,

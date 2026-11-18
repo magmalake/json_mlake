@@ -2,15 +2,14 @@
 # Unified CPU/GPU parser with compile-time target and backend selection
 
 from std.collections import List
-from std.memory import unsafe_memcpy, ArcPointer
+from std.memory import ArcPointer
 
-from .value import Value, Null, make_view_value
+from .value import Value, make_view_value
 from .serialize import dumps
 from .cpu import SimdjsonTape
 from .cpu import parse_cpu_native_tape
 from .cpu.validate import is_valid_utf8
 from .document import Document
-from .types import JSONInput, JSONResult
 
 
 # =============================================================================
@@ -471,7 +470,6 @@ from .config import ParserConfig
 from .ijson import check_no_unpaired_surrogates, check_unique_member_names
 from .lazy import LazyValue
 from .streaming import StreamingParser
-from .errors import json_parse_error
-from .unicode import unescape_json_string, unescape_json_string_span
+from .unicode import unescape_json_string_span
 from .config import preprocess_json
 from ._lines import _split_lines, _is_whitespace_only

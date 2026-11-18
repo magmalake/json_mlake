@@ -30,7 +30,6 @@
 # `stage1_scalar.parse_structural_scalar`; the equivalence is enforced
 # by `tests/test_stage1_equivalence.mojo` on every benchmark corpus.
 
-from std.collections import List
 from std.bit import count_trailing_zeros
 from std.memory.unsafe import pack_bits
 

@@ -16,7 +16,6 @@ from std.random import random_float64, random_ui64
 from std.testing import assert_equal, assert_raises, assert_true
 
 from json.cpu.number_parse import (
-    NUM_ERR_GRAMMAR,
     NUM_ERR_LEADING_ZERO,
     NUM_FLOAT,
     NUM_INT,

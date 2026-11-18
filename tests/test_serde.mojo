@@ -1,6 +1,6 @@
 """Tests for Serializable/Deserializable traits and serialize/deserialize functions."""
 
-from std.testing import assert_equal, assert_true, assert_raises
+from std.testing import assert_equal, assert_true
 from json import (
     loads,
     to_json_value,

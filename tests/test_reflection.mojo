@@ -1,6 +1,6 @@
 """Tests for reflection-based JSON serialization and deserialization."""
 
-from std.testing import assert_equal, assert_true, assert_raises
+from std.testing import assert_equal, assert_true
 from std.collections import Optional, List, Dict
 from json import loads, Value, Null
 from json.reflection import (

@@ -9,7 +9,7 @@ from std.os import remove
 from std.sys import has_accelerator
 from std.testing import assert_equal, assert_true, TestSuite
 
-from json import dumps, Value, Null
+from json import dumps
 from json.gpu import loads, load
 from json import serialize_json, deserialize_json
 from json.gpu.tape_adapter import parse_gpu_to_value

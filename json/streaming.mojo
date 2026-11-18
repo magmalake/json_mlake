@@ -3,7 +3,6 @@
 # Process JSON files larger than memory by reading in chunks.
 # Best suited for NDJSON (newline-delimited JSON) files.
 
-from std.collections import List
 from .value import Value
 from .cpu import parse_cpu_native_tape
 

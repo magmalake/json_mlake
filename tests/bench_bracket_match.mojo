@@ -6,7 +6,6 @@ from std.collections import List
 from std.memory import unsafe_memcpy
 
 from json.gpu.bracket_match import match_brackets_gpu
-from json.types import JSONResult
 
 
 def generate_brackets(depth: Int, count: Int) -> List[UInt8]:
