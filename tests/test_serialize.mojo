@@ -2,7 +2,7 @@
 
 from std.testing import assert_equal, assert_true, TestSuite
 
-from json import Value, Null, dumps, loads, SerializerConfig
+from json import Value, dumps, loads, SerializerConfig
 
 
 def test_serialize_null() raises:

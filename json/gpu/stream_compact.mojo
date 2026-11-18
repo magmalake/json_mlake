@@ -16,8 +16,7 @@
 # requires `max-core`, which is governed by the Modular Community
 # License. See `json/gpu/LICENSE-GPU.md`.
 
-from max.gpu.host import DeviceContext, DeviceBuffer
-from max.gpu import barrier
+from max.gpu.host import DeviceContext
 from max.gpu.primitives import block
 from max.gpu import block_dim, block_idx, thread_idx
 from max.gpu.globals import MAX_THREADS_PER_BLOCK_METADATA

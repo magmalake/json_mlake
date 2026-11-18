@@ -3,7 +3,7 @@
 # Demonstrates: Handling JSON parse errors using try/except and assert_raises
 
 from std.testing import assert_raises
-from json import loads, dumps, Value
+from json import loads, dumps
 
 
 def parse_safely(json_str: String) -> String:

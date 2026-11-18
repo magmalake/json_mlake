@@ -12,7 +12,7 @@ Supported field types:
     Nested structs, Value (raw JSON pass-through)
 """
 
-from json import loads, Value, Null
+from json import loads, Value
 from json import (
     serialize_json,
     serialize_value,

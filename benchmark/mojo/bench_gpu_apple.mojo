@@ -21,7 +21,7 @@ from std.memory import unsafe_memcpy
 from std.sys import argv
 from std.time import perf_counter_ns
 
-from json.gpu import loads, parse_json_gpu
+from json.gpu import parse_json_gpu
 from json.types import JSONInput
 from std.pathlib import Path
 

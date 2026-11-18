@@ -15,7 +15,7 @@ the build and so does fixing one without removing its entry -- which
 keeps the list honest and shrinking.
 """
 
-from std.collections import Dict, List
+from std.collections import List
 from std.pathlib import Path
 from std.testing import assert_equal, assert_true
 

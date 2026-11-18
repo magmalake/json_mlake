@@ -11,7 +11,7 @@
 
 from std.sys import has_accelerator
 
-from json import dumps, Value
+from json import dumps
 from json.gpu import loads, load
 
 

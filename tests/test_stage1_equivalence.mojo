@@ -13,12 +13,11 @@
 # implementation has to match the oracle byte-for-byte before it
 # ships at all.
 
-from std.testing import assert_equal, assert_true, TestSuite
+from std.testing import assert_equal, TestSuite
 from std.collections import List
 
 from json.cpu.stage1_scalar import parse_structural_scalar, StructuralIndex
 from json.cpu.stage1 import parse_structural_simd
-from json import loads
 
 
 # ---------------------------------------------------------------------------

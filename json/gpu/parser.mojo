@@ -38,15 +38,12 @@
 # License. See `json/gpu/LICENSE-GPU.md`.
 
 from max.gpu.host import DeviceContext, DeviceBuffer, HostBuffer
-from max.gpu import barrier
-from max.gpu import block_dim, block_idx, thread_idx, global_idx
-from max.gpu.globals import MAX_THREADS_PER_BLOCK_METADATA
+from max.gpu import block_dim
 from std.collections import List
-from std.memory import Pointer, unsafe_memcpy
+from std.memory import unsafe_memcpy
 from std.math import ceildiv
 from std.sys import has_accelerator
 from std.time import perf_counter_ns
-from std.utils.static_tuple import StaticTuple
 
 from ..types import JSONInput, JSONResult
 from .kernels import BLOCK_SIZE_OPT, fused_json_kernel

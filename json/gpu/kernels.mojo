@@ -22,9 +22,6 @@
 # requires `max-core`, which is governed by the Modular Community
 # License. See `json/gpu/LICENSE-GPU.md`.
 
-from max.gpu import barrier
-from max.gpu.host import DeviceContext
-from max.gpu.memory import AddressSpace
 from max.gpu import thread_idx, block_idx, block_dim
 from max.gpu.globals import MAX_THREADS_PER_BLOCK_METADATA
 from std.memory import Pointer
@@ -36,9 +33,6 @@ from ..types import (
     CHAR_CLOSE_BRACKET,
     CHAR_COLON,
     CHAR_COMMA,
-    CHAR_QUOTE,
-    CHAR_BACKSLASH,
-    CHAR_NEWLINE,
 )
 
 

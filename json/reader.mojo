@@ -25,9 +25,7 @@ from std.sys import simd_byte_width
 
 from .cpu.number_parse import (
     NUM_ERR_LEADING_ZERO,
-    NUM_FLOAT,
     NUM_INVALID,
-    NUM_UINT,
     parse_float_span,
     parse_int_checked,
     scan_number,
@@ -42,7 +40,6 @@ from .cpu.validate import (
     find_control_char,
     first_invalid_utf8,
     is_valid_utf8,
-    is_ws,
     skip_ws,
     validate_escapes,
 )

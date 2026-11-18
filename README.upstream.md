@@ -102,7 +102,7 @@ def main() raises:
     var logs   = load[format="ndjson"]("events.ndjson")  # List[Value]
 ```
 
-`json.prelude` re-exports the everyday surface (`loads`, `dumps`, `load`, `dump`, `Value`, `Null`, `ParserConfig`, `SerializerConfig`, the reflection serde shortcuts). Domain-specific surfaces (jsonpath, patch, schema, lazy, streaming, manual serde traits, simdjson FFI) stay in their own modules. Full list: [`json/prelude.mojo`](./json/prelude.mojo).
+`json.prelude` re-exports the everyday surface (`loads`, `dumps`, `load`, `dump`, `Value`, `Null`, `ParserConfig`, `SerializerConfig`, the reflection serde shortcuts). Domain-specific surfaces (jsonpath, patch, schema, lazy, streaming, manual serde traits, simdjson FFI) stay in their own modules. Full list: [`json/prelude/__init__.mojo`](./json/prelude/__init__.mojo).
 
 Typed serde via compile-time reflection (no hand-written `to_json` / `from_json`), GPU parsing for big files, NDJSON, JSONPath, JSON Patch, and JSON Schema each get a dedicated worked example under [`examples/`](./examples/) -- one example per topic, indexed in [`examples/README.md`](./examples/README.md). Every example runs as part of `pixi run tests`.
 

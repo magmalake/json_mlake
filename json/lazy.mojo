@@ -3,7 +3,7 @@
 # LazyValue defers parsing until values are actually accessed.
 # This is efficient when you only need a few fields from a large document.
 
-from .value import Value, Null
+from .value import Value
 from .pointer import index_value, parse_pointer
 from .value.raw_ops import _extract_field_value, _extract_array_element
 from .cpu import parse_cpu_native_tape

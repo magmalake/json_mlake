@@ -11,7 +11,6 @@ from std.benchmark import (
     BenchId,
     ThroughputMeasure,
     BenchMetric,
-    Unit,
 )
 from std.pathlib import Path
 from std.sys import argv

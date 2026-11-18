@@ -3,7 +3,7 @@
 # Lazy parsing defers actual parsing until you access specific fields.
 # Useful when you only need a few fields from a large JSON document.
 
-from json import loads, LazyValue
+from json import loads
 
 
 def main() raises:
