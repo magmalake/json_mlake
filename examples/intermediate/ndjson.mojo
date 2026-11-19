@@ -36,7 +36,7 @@ def main() raises:
     f.write('{"event":"login","user":"alice"}\n')
     f.write('{"event":"purchase","user":"bob","amount":99.99}\n')
     f.write('{"event":"logout","user":"alice"}\n')
-    f.close()
+    f^.close()
 
     # Auto-detects .ndjson and returns array Value
     var events = load("example_data.ndjson")
@@ -71,7 +71,7 @@ def main() raises:
     var parser = load[streaming=True]("example_data.ndjson")
     var count = 0
     while parser.has_next():
-        var item = parser.next()
+        _ = parser.next()
         count += 1
         # Process each item without loading entire file
     parser.close()

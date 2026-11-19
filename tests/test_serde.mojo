@@ -151,7 +151,7 @@ def test_error_handling() raises:
     var json_str = '{"name":"Invalid","age":"not_a_number","active":true}'
 
     try:
-        var person = deserialize[Person](json_str)
+        _ = deserialize[Person](json_str)
         raise Error("Should have failed on invalid data")
     except:
         # Expected to fail

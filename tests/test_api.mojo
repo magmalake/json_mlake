@@ -73,15 +73,15 @@ def test_dumps_basic() raises:
     """Test basic serialization."""
     var data = loads('{"a":1}')
     var s = dumps(data)
-    assert_true(s.find('"a"') >= 0)
-    assert_true(s.find("1") >= 0)
+    assert_true('"a"' in s)
+    assert_true("1" in s)
 
 
 def test_dumps_pretty() raises:
     """Test dumps with indentation."""
     var data = loads('{"a":1,"b":2}')
     var s = dumps(data, indent="  ")
-    assert_true(s.find("\n") >= 0)
+    assert_true("\n" in s)
 
 
 def test_dumps_config() raises:
@@ -89,7 +89,7 @@ def test_dumps_config() raises:
     var data = loads('{"url":"http://x.com"}')
     var config = SerializerConfig(escape_forward_slash=True)
     var s = dumps(data, config)
-    assert_true(s.find("\\/") >= 0)
+    assert_true("\\/" in s)
 
 
 def test_dumps_ndjson() raises:
@@ -98,7 +98,7 @@ def test_dumps_ndjson() raises:
     values.append(loads('{"a":1}'))
     values.append(loads('{"a":2}'))
     var s = dumps[format="ndjson"](values)
-    assert_true(s.find("\n") >= 0)
+    assert_true("\n" in s)
 
 
 def test_dumps_roundtrip() raises:
@@ -121,7 +121,7 @@ def test_load_dump_roundtrip() raises:
 
     var f_out = open("test_api.json", "w")
     dump(data, f_out)
-    f_out.close()
+    f_out^.close()
 
     var loaded = load("test_api.json")
     assert_equal(Int(loaded["test"].int_value()), 123)
@@ -131,7 +131,7 @@ def test_load_ndjson() raises:
     """Test load auto-detects .ndjson files."""
     var f_out = open("test_api.ndjson", "w")
     f_out.write('{"a":1}\n{"a":2}\n')
-    f_out.close()
+    f_out^.close()
 
     var data = load("test_api.ndjson")  # Auto-detects from extension
     assert_true(data.is_array())
@@ -142,7 +142,7 @@ def test_load_streaming() raises:
     """Test load with streaming=True."""
     var f_out = open("test_api_stream.ndjson", "w")
     f_out.write('{"a":1}\n{"a":2}\n{"a":3}\n')
-    f_out.close()
+    f_out^.close()
 
     var parser = load[streaming=True]("test_api_stream.ndjson")
     var count = 0

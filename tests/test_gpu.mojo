@@ -364,7 +364,7 @@ def test_tape_adapter_roundtrip() raises:
             fake_gpu_result.structural.append(Int32(p))
     fake_gpu_result.file_size = len(bytes)
 
-    var adapter_value = parse_gpu_to_value(json, fake_gpu_result^)
+    var adapter_value = parse_gpu_to_value(json, fake_gpu_result)
     var cpu_value = loads(json)
 
     assert_true(adapter_value.is_object(), "adapter Value should be object")
@@ -384,7 +384,7 @@ def test_load_ndjson_on_gpu() raises:
         return
     var f_out = open("test_gpu_api.ndjson", "w")
     f_out.write('{"x":1}\n{"x":2}\n{"x":3}\n')
-    f_out.close()
+    f_out^.close()
 
     var data = load[target="gpu"]("test_gpu_api.ndjson")
     assert_true(data.is_array())
@@ -397,7 +397,7 @@ def test_loads_ndjson_on_gpu() raises:
         return
     var f_out = open("test_gpu_lines.ndjson", "w")
     f_out.write('{"id":1}\n{"id":2}\n')
-    f_out.close()
+    f_out^.close()
     var values = load[target="gpu"]("test_gpu_lines.ndjson")
     assert_equal(values.array_count(), 2)
 

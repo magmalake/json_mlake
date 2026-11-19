@@ -2352,8 +2352,10 @@ struct ValueArrayIter[mut: Bool, //, origin: Origin[mut=mut]](
         """Whether any element remains."""
         return self._index < self._count
 
-    def __next__(mut self) -> Value:
+    def __next__(mut self) raises StopIteration -> Value:
         """The next element."""
+        if not self.__has_next__():
+            raise StopIteration()
         var item = self._src[]._element_at(self._index)
         self._index += 1
         return item^
@@ -2392,8 +2394,10 @@ struct ValueItemsIter[mut: Bool, //, origin: Origin[mut=mut]](
         """Whether any member remains."""
         return self._index < self._count
 
-    def __next__(mut self) -> Tuple[String, Value]:
+    def __next__(mut self) raises StopIteration -> Tuple[String, Value]:
         """The next `(key, value)` pair."""
+        if not self.__has_next__():
+            raise StopIteration()
         var key = self._src[]._member_key_at(self._index)
         var value = self._src[]._member_value_at(self._index)
         self._index += 1
@@ -2430,8 +2434,10 @@ struct ValueKeysIter[mut: Bool, //, origin: Origin[mut=mut]](
         """Whether any member remains."""
         return self._index < self._count
 
-    def __next__(mut self) -> String:
+    def __next__(mut self) raises StopIteration -> String:
         """The next member name."""
+        if not self.__has_next__():
+            raise StopIteration()
         var key = self._src[]._member_key_at(self._index)
         self._index += 1
         return key^
@@ -2467,8 +2473,10 @@ struct ValueValuesIter[mut: Bool, //, origin: Origin[mut=mut]](
         """Whether any member remains."""
         return self._index < self._count
 
-    def __next__(mut self) -> Value:
+    def __next__(mut self) raises StopIteration -> Value:
         """The next member value."""
+        if not self.__has_next__():
+            raise StopIteration()
         var value = self._src[]._member_value_at(self._index)
         self._index += 1
         return value^

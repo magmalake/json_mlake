@@ -3,7 +3,7 @@
 # Uses OwnedDLHandle for runtime library loading
 
 from std.ffi import OwnedDLHandle, _get_global
-from std.memory import Layout, OptionalPointer, Pointer, alloc
+from std.memory import Layout, Pointer, alloc
 from std.collections import List
 from ..errors import json_parse_error, find_error_position
 from ..document import Document
@@ -55,8 +55,8 @@ comptime SIMDJSON_TYPE_OBJECT: Int = 7
 comptime _TAPE_SYMBOLS = 4
 
 
-def _tape_cell_init() -> OptionalPointer[NoneType, UntrackedOrigin[mut=True]]:
-    var raw = alloc(Layout[Int](count=_TAPE_SYMBOLS)).unsafe_leak()
+def _tape_cell_init() -> Optional[Pointer[NoneType, UntrackedOrigin[mut=True]]]:
+    var raw = alloc(Layout[Int](length=_TAPE_SYMBOLS)).unsafe_leak()
     for i in range(_TAPE_SYMBOLS):
         raw.unsafe_offset(i).unsafe_write(0)
     try:
@@ -73,7 +73,7 @@ def _tape_cell_init() -> OptionalPointer[NoneType, UntrackedOrigin[mut=True]]:
             if not sym:
                 raise Error("missing " + name)
             addrs.append(Int(sym.value()))
-        alloc(Layout[OwnedDLHandle](count=1)).unsafe_leak().unsafe_write(lib^)
+        alloc(Layout[OwnedDLHandle](length=1)).unsafe_leak().unsafe_write(lib^)
         for k in range(_TAPE_SYMBOLS):
             raw.unsafe_offset(k).unsafe_write(addrs[k])
     except:
@@ -83,7 +83,9 @@ def _tape_cell_init() -> OptionalPointer[NoneType, UntrackedOrigin[mut=True]]:
     )
 
 
-def _tape_cell_destroy(p: OptionalPointer[NoneType, UntrackedOrigin[mut=True]]):
+def _tape_cell_destroy(
+    p: Optional[Pointer[NoneType, UntrackedOrigin[mut=True]]]
+):
     if p:
         Pointer[Int, MutUntrackedOrigin](
             unsafe_from_address=Int(p.value())

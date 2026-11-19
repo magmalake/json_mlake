@@ -155,7 +155,7 @@ def main() raises:
     ) raises {imm h_input, imm n, imm ctx, imm verbose}:
         @always_inline
         def launch(
-            launch_ctx: DeviceContext,
+            launch_ctx: type_of(ctx),
         ) raises {imm h_input, imm n, imm verbose}:
             var result = parse_json_gpu_from_pinned(
                 launch_ctx, h_input, n, verbose=verbose

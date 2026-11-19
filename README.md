@@ -54,6 +54,26 @@ Tracks upstream **v0.4.2**. Packaging, and these source deltas:
   relative to the working directory, which this drops. Worth sending
   upstream.
 
+- **Built for the Mojo 1.3 nightly, `1.3.0.dev2026111805`**, the one
+  toolchain every magmalake tin uses, not upstream's `mojo >=1.2.0`: the
+  workspace pins `mojo` exactly on the `max-nightly` channel, the recipe
+  pins `mojo-compiler` exactly (a `.mojoc` loads only in the compiler that
+  built it), and `max-core` is `26.8.0.dev2026111805`. The source changes
+  the nightly needs: the iterators raise `StopIteration` at the end (a
+  `for` loop no longer asks `__has_next__`, so they never ended);
+  `FileHandle` is move-only, so `close()` takes it (`f^`) and the
+  streaming parsers hold an `Optional[FileHandle]`; `String.find()`
+  returns an `Optional`, so `$ref` resolution takes `.or_else(-1)` and
+  the substring checks (streaming, tests, fuzz) use `in`; the pretty
+  writer takes its indent pointer after growing the buffer, not before;
+  `StringSlice` becomes `StringSpan`, `OptionalPointer`
+  `Optional[Pointer]`, `Layout(count=)` `Layout(length=)`; `bench_gpu`'s launch closure names its
+  `DeviceContext` type; and unused assignments in the tests and examples
+  go to `_`. Worth sending upstream when it moves to 1.3. The `fuzz`
+  environment takes mozz from
+  [magmalake/mozz_mlake](https://github.com/magmalake/mozz_mlake), ported
+  to the same nightly, because upstream mozz v0.2.2 does not compile on it.
+
 - **The package is named `json_mlake`**; the module is still imported as
   `json`, so consumers change no source, and switching to an official package
   later is a one-line dependency change. The recipe's description says it is a

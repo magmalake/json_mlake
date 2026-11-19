@@ -67,10 +67,10 @@ def test_dumps_pretty_simple_object() raises:
     var data = loads('{"name":"Alice","age":30}')
     var result = dumps(data, indent="  ")
     # Check it contains newlines and indentation
-    assert_true(result.find("\n") >= 0, "Should contain newlines")
-    assert_true(result.find("  ") >= 0, "Should contain indentation")
-    assert_true(result.find('"name"') >= 0, "Should contain name key")
-    assert_true(result.find('"Alice"') >= 0, "Should contain Alice value")
+    assert_true("\n" in result, "Should contain newlines")
+    assert_true("  " in result, "Should contain indentation")
+    assert_true('"name"' in result, "Should contain name key")
+    assert_true('"Alice"' in result, "Should contain Alice value")
 
 
 def test_dumps_pretty_nested_object() raises:
@@ -80,9 +80,9 @@ def test_dumps_pretty_nested_object() raises:
     var data = loads('{"user":{"name":"Bob","scores":[1,2,3]}}')
     var result = dumps(data, indent="  ")
     # Check structure
-    assert_true(result.find("\n") >= 0, "Should contain newlines")
-    assert_true(result.find('"user"') >= 0, "Should contain user key")
-    assert_true(result.find('"name"') >= 0, "Should contain name key")
+    assert_true("\n" in result, "Should contain newlines")
+    assert_true('"user"' in result, "Should contain user key")
+    assert_true('"name"' in result, "Should contain name key")
 
 
 def test_dumps_pretty_array() raises:
@@ -91,9 +91,9 @@ def test_dumps_pretty_array() raises:
 
     var data = loads('[1,2,3,"hello",true,null]')
     var result = dumps(data, indent="  ")
-    assert_true(result.find("\n") >= 0, "Should contain newlines")
-    assert_true(result.find("1") >= 0, "Should contain 1")
-    assert_true(result.find('"hello"') >= 0, "Should contain hello")
+    assert_true("\n" in result, "Should contain newlines")
+    assert_true("1" in result, "Should contain 1")
+    assert_true('"hello"' in result, "Should contain hello")
 
 
 def test_dumps_pretty_empty_object() raises:
@@ -122,7 +122,7 @@ def test_dumps_compact_default() raises:
     var result = dumps(data)
     # Should not contain newlines
     assert_true(
-        result.find("\n") < 0, "Should not contain newlines in compact mode"
+        "\n" not in result, "Should not contain newlines in compact mode"
     )
 
 

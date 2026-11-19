@@ -183,7 +183,7 @@ def test_first_invalid_utf8_points_at_the_byte() raises:
 def test_utf8_agrees_with_the_stdlib_constructor() raises:
     """Differential check over random bytes.
 
-    `StringSlice(from_utf8=...)` validates and raises, so it is an
+    `StringSpan(from_utf8=...)` validates and raises, so it is an
     independent oracle for the same question.
     """
     var disagreements = 0
@@ -195,7 +195,7 @@ def test_utf8_agrees_with_the_stdlib_constructor() raises:
         var ours = is_valid_utf8(Span(raw))
         var theirs = True
         try:
-            _ = StringSlice(from_utf8=Span(raw))
+            _ = StringSpan(from_utf8=Span(raw))
         except:
             theirs = False
         if ours != theirs:
