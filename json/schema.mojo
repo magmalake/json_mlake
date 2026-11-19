@@ -1462,7 +1462,7 @@ struct _Compiler(Movable):
     def _resolve(self, reference: String) raises -> Int:
         var base_index = 0
         var fragment = ""
-        var hash_at = reference.find("#")
+        var hash_at = reference.find("#").or_else(-1)
         var base = reference
         if hash_at >= 0:
             base = _strip_suffix(reference, reference.byte_length() - hash_at)

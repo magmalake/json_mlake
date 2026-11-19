@@ -369,7 +369,7 @@ def load[target: StaticString = "cpu"](path: String) raises -> Value:
     """
     var f = open(path, "r")
     var content = f.read()
-    f.close()
+    f^.close()
 
     # Auto-detect NDJSON from extension
     if path.endswith(".ndjson"):
@@ -433,7 +433,7 @@ def load[
 
     var f = open(path, "r")
     var content = f.read()
-    f.close()
+    f^.close()
     return loads[target, format="ndjson"](content)
 
 

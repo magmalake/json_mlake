@@ -725,11 +725,12 @@ struct JsonWriter(Movable):
         var unit = self.indent.byte_length()
         if unit == 0:
             return
-        # Read the indent through a raw pointer: a `Span` borrowed from
-        # `self.indent` would alias the `mut self` the writes need.
-        var src = self.indent.unsafe_ptr()
         self.ensure(1 + self.depth * unit)
         self._put(UInt8(0x0A))
+        # Read the indent through a raw pointer: a `Span` borrowed from
+        # `self.indent` would alias the `mut self` the writes need. Taken
+        # after the `mut self` calls above, which invalidate it.
+        var src = self.indent.unsafe_ptr()
         var dest = self.buf.unsafe_ptr()
         for _ in range(self.depth):
             unsafe_memcpy(

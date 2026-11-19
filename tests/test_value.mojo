@@ -493,9 +493,7 @@ def test_len_of_scalar_raises() raises:
         _ = len(Value(1))
     except e:
         raised = True
-        assert_true(
-            String(e).find("integer") >= 0, "the error names the type found"
-        )
+        assert_true("integer" in String(e), "the error names the type found")
     assert_true(raised, "len of a number must raise")
 
     raised = False
@@ -591,7 +589,7 @@ def test_iterate_non_array_raises() raises:
             pass
     except e:
         raised = True
-        assert_true(String(e).find("object") >= 0, "the error names the type")
+        assert_true("object" in String(e), "the error names the type")
     assert_true(raised, "iterating an object must raise")
 
 
@@ -719,7 +717,7 @@ def test_as_accessors_raise_and_name_the_type() raises:
         _ = text.as_int()
     except e:
         raised = True
-        assert_true(String(e).find("string") >= 0, "the error names 'string'")
+        assert_true("string" in String(e), "the error names 'string'")
     assert_true(raised, "as_int on a string must raise")
 
     assert_equal(Value(42).as_int(), 42)
@@ -818,7 +816,7 @@ def test_negative_index() raises:
         _ = arr[-4]
     except e:
         raised = True
-        assert_true(String(e).find("-4") >= 0, "the error names what was asked")
+        assert_true("-4" in String(e), "the error names what was asked")
     assert_true(raised, "an index past the start still raises")
 
 

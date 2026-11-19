@@ -22,7 +22,7 @@ struct StreamingParser:
         parser.close().
     """
 
-    var _file: FileHandle
+    var _file: Optional[FileHandle]
     var _buffer: String
     var _chunk_size: Int
     var _eof: Bool
@@ -44,7 +44,7 @@ struct StreamingParser:
     def close(mut self) raises:
         """Close the file handle."""
         if not self._closed:
-            self._file.close()
+            self._file.take().close()
             self._closed = True
 
     def has_next(mut self) -> Bool:
@@ -106,7 +106,7 @@ struct StreamingParser:
 
     def _read_chunk(mut self) raises:
         """Read a chunk of data from the file."""
-        var chunk = self._file.read(self._chunk_size)
+        var chunk = self._file.value().read(self._chunk_size)
         if chunk.byte_length() == 0:
             self._eof = True
         else:
@@ -210,7 +210,7 @@ struct ArrayStreamingParser:
     elements one at a time without loading the entire array.
     """
 
-    var _file: FileHandle
+    var _file: Optional[FileHandle]
     var _buffer: String
     var _chunk_size: Int
     var _eof: Bool
@@ -236,7 +236,7 @@ struct ArrayStreamingParser:
     def close(mut self) raises:
         """Close the file handle."""
         if not self._closed:
-            self._file.close()
+            self._file.take().close()
             self._closed = True
 
     def has_next(mut self) -> Bool:
@@ -270,7 +270,7 @@ struct ArrayStreamingParser:
 
     def _read_chunk(mut self) raises:
         """Read a chunk of data."""
-        var chunk = self._file.read(self._chunk_size)
+        var chunk = self._file.value().read(self._chunk_size)
         if chunk.byte_length() == 0:
             self._eof = True
         else:
@@ -360,11 +360,7 @@ struct ArrayStreamingParser:
         if (
             found_start
             and depth == 0
-            and (
-                self._eof
-                or self._buffer.find(",") >= 0
-                or self._buffer.find("]") >= 0
-            )
+            and (self._eof or "," in self._buffer or "]" in self._buffer)
         ):
             return True
 

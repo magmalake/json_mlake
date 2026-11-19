@@ -96,7 +96,7 @@ def load[target: StaticString = "gpu"](path: String) raises -> Value:
 
     var f = open(path, "r")
     var content = f.read()
-    f.close()
+    f^.close()
 
     if path.endswith(".ndjson"):
         var values = List[Value]()

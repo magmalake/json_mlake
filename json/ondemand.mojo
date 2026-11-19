@@ -336,7 +336,7 @@ def _value_end(data: Span[UInt8, _], i: Int, end: Int, kind: RawKind) -> Int:
 
 @always_inline
 def _key_matches(
-    data: Span[UInt8, _], ks: Int, ke: Int, escaped: Bool, key: StringSlice
+    data: Span[UInt8, _], ks: Int, ke: Int, escaped: Bool, key: StringSpan
 ) -> Bool:
     """Whether the key body `[ks, ke)` spells `key` once unescaped."""
     var kb = key.as_bytes()
@@ -491,11 +491,11 @@ struct RawValue[origin: ImmOrigin](TrivialRegisterPassable, Writable):
         elif self.kind == RawKind.INVALID:
             writer.write("<invalid at ", self.start, ">")
         else:
-            writer.write(StringSlice(unsafe_from_utf8=self.raw()))
+            writer.write(StringSpan(unsafe_from_utf8=self.raw()))
 
     # --- objects ------------------------------------------------------
 
-    def field(self, key: StringSlice) -> Self:
+    def field(self, key: StringSpan) -> Self:
         """The value of `key` in this object; the first one if repeated.
 
         Absent if there is no such key or this is not an object.
@@ -536,7 +536,7 @@ struct RawValue[origin: ImmOrigin](TrivialRegisterPassable, Writable):
             return self._invalid(i)
 
     @always_inline
-    def __getitem__(self, key: StringSlice) -> Self:
+    def __getitem__(self, key: StringSpan) -> Self:
         """`field(key)`."""
         return self.field(key)
 
@@ -618,10 +618,8 @@ struct RawValue[origin: ImmOrigin](TrivialRegisterPassable, Writable):
             return self._miss()
         if index < 0:
             return self._absent()
-        var it = self.elements()
         var k = 0
-        while it.__has_next__():
-            var v = it.__next__()
+        for v in self.elements():
             if v.kind == RawKind.INVALID or k == index:
                 return v
             k += 1
@@ -634,7 +632,7 @@ struct RawValue[origin: ImmOrigin](TrivialRegisterPassable, Writable):
 
     # --- paths --------------------------------------------------------
 
-    def path(self, dotted: StringSlice) -> Self:
+    def path(self, dotted: StringSpan) -> Self:
         """Follow `a.b.c`: each segment is a key, or an index into an array.
 
         `payload.commits.0.message` is `["payload"]["commits"][0]
@@ -648,7 +646,7 @@ struct RawValue[origin: ImmOrigin](TrivialRegisterPassable, Writable):
             var e = s
             while e < n and b[e] != UInt8(ord(".")):
                 e += 1
-            var seg = StringSlice(unsafe_from_utf8=b[s:e])
+            var seg = StringSpan(unsafe_from_utf8=b[s:e])
             if cur.kind == RawKind.ARRAY and _all_digits(b, s, e):
                 cur = cur.at(_digits_value(b, s, e))
             else:
@@ -698,7 +696,7 @@ struct RawValue[origin: ImmOrigin](TrivialRegisterPassable, Writable):
             unsafe_from_utf8=unescape_json_string_span(self.data, s, e)
         )
 
-    def string_equals(self, text: StringSlice) -> Bool:
+    def string_equals(self, text: StringSpan) -> Bool:
         """Whether this is a string spelling `text` once unescaped.
 
         Allocates nothing unless the string holds an escape.
@@ -886,7 +884,9 @@ struct RawMembers[origin: ImmOrigin](Copyable, Iterator):
     def __has_next__(self) -> Bool:
         return self._next.value.kind != RawKind.ABSENT
 
-    def __next__(mut self) -> RawMember[Self.origin]:
+    def __next__(mut self) raises StopIteration -> RawMember[Self.origin]:
+        if not self.__has_next__():
+            raise StopIteration()
         var item = self._next
         if item.value.kind == RawKind.INVALID or self._pos == -1:
             var none = self._obj._absent()
@@ -947,7 +947,9 @@ struct RawElements[origin: ImmOrigin](Copyable, Iterator):
     def __has_next__(self) -> Bool:
         return self._next.kind != RawKind.ABSENT
 
-    def __next__(mut self) -> RawValue[Self.origin]:
+    def __next__(mut self) raises StopIteration -> RawValue[Self.origin]:
+        if not self.__has_next__():
+            raise StopIteration()
         var item = self._next
         if item.kind == RawKind.INVALID or self._pos == -1:
             self._next = self._arr._absent()
@@ -1089,7 +1091,9 @@ struct RawLines[origin: ImmOrigin](Copyable, Iterator):
     def __has_next__(self) -> Bool:
         return self._next.kind != RawKind.ABSENT
 
-    def __next__(mut self) -> RawValue[Self.origin]:
+    def __next__(mut self) raises StopIteration -> RawValue[Self.origin]:
+        if not self.__has_next__():
+            raise StopIteration()
         var item = self._next
         self.line_start = self._next_line_start
         self.line_end = self._next_line_end

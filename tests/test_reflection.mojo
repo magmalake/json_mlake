@@ -534,7 +534,7 @@ def test_round_trip_mixed() raises:
 def test_error_not_object() raises:
     """A struct needs an object, and the error says which brace it wanted."""
     try:
-        var p = deserialize_json[Point]('"not an object"')
+        _ = deserialize_json[Point]('"not an object"')
         raise Error("Should have raised")
     except e:
         assert_true("expected '{'" in String(e), String(e))
@@ -544,7 +544,7 @@ def test_error_not_object() raises:
 def test_error_missing_required_field() raises:
     """A missing field names itself rather than leaving a half-built struct."""
     try:
-        var p = deserialize_json[Point]('{"x":1}')
+        _ = deserialize_json[Point]('{"x":1}')
         raise Error("Should have raised")
     except e:
         assert_true("missing required field 'y'" in String(e), String(e))
@@ -554,7 +554,7 @@ def test_error_missing_required_field() raises:
 def test_error_wrong_type() raises:
     """A type mismatch names the field it happened in."""
     try:
-        var p = deserialize_json[Point]('{"x":"nope","y":2}')
+        _ = deserialize_json[Point]('{"x":"nope","y":2}')
         raise Error("Should have raised")
     except e:
         assert_true("field 'x'" in String(e), String(e))

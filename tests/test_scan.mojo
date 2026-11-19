@@ -30,7 +30,7 @@ from json import RawKind, RawValue, Value, dumps, loads, scan, scan_lines
 from json.reader import JsonReader
 
 
-def _b(s: StringSlice) -> List[UInt8]:
+def _b(s: StringSpan) -> List[UInt8]:
     var out = List[UInt8]()
     for c in s.as_bytes():
         out.append(c)
@@ -181,7 +181,7 @@ def test_string_decoding() raises:
     assert_true(root["plain"].string_equals("abc"))
     assert_false(root["plain"].string_equals("abd"))
     assert_equal(
-        String(StringSlice(unsafe_from_utf8=root["e"].string_raw())),
+        String(StringSpan(unsafe_from_utf8=root["e"].string_raw())),
         'a\\nb\\t\\"q\\"\\\\\\/',
     )
 

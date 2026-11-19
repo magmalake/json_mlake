@@ -117,7 +117,7 @@ def target(data: List[UInt8]) raises:
         root.validate()
     except e:
         scan_ok = False
-        too_deep = String(e).find("depth") >= 0
+        too_deep = "depth" in String(e)
     if too_deep:
         return
     if dom_ok != scan_ok:
@@ -138,7 +138,7 @@ def target(data: List[UInt8]) raises:
         raise Error("rejected")
 
 
-def _bytes(s: StringSlice) -> List[UInt8]:
+def _bytes(s: StringSpan) -> List[UInt8]:
     var b = s.as_bytes()
     var out = List[UInt8](capacity=len(b))
     for i in range(len(b)):
