@@ -16,7 +16,7 @@ context:
   name: json_mlake
   # Must equal shelf.toml and pixi.toml; .github/check-versions.py fails CI
   # otherwise (`shelf release` bumps only those two).
-  version: "0.5.1"
+  version: "0.6.0"
 
 package:
   name: ${{ name }}

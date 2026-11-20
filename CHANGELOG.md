@@ -5,6 +5,12 @@ Changes this distribution makes on top of
 
 ## Unreleased
 
+## 0.6.0 - 2026-11-20
+
+### Changed
+
+- Pins mozz_mlake 0.2.3.
+
 ## 0.5.1 - 2026-11-14
 
 - The package records its own version again: 0.5.0's recipe still said
