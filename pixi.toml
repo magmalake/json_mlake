@@ -3,12 +3,12 @@ authors = ["ehsanmok <ehsanmok@users.noreply.github.com>"]
 channels = ["https://conda.modular.com/max-nightly", "conda-forge"]
 name = "json"
 platforms = ["linux-64", "osx-arm64"]
-version = "0.6.0"
+version = "0.6.1"
 preview = ["pixi-build"]
 
 [package]
 name = "json_mlake"
-version = "0.6.0"
+version = "0.6.1"
 
 [package.build]
 # Lower bound only, deliberately — upstream's fix, which supersedes the
@@ -102,7 +102,7 @@ max-core = "==26.8.0.dev2026112505"
 [feature.fuzz.dependencies]
 # magmalake's packaging of mozz, on the same Mojo nightly as this package:
 # upstream mozz v0.2.2 does not compile on it. The module is still `mozz`.
-mozz_mlake = { git = "https://github.com/magmalake/mozz_mlake.git", rev = "8c971ffda874152e73b2229640fcc0938cc92cd6" }
+mozz_mlake = { git = "https://github.com/magmalake/mozz_mlake.git", rev = "fbd1ebf141417114e87b74c4b87e6d64eb771fac" }
 
 [environments]
 # `default` is deliberately what a consumer of the published package
