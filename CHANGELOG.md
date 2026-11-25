@@ -5,6 +5,12 @@ Changes this distribution makes on top of
 
 ## Unreleased
 
+## 0.6.1 - 2026-11-25
+
+### Changed
+
+- Pins mozz_mlake 0.2.4.
+
 ## 0.6.0 - 2026-11-20
 
 ### Changed
