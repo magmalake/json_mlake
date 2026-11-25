@@ -1,5 +1,7 @@
 # json_mlake
 
+[![Used by](https://mojourney.dev/badge/magmalake/json_mlake/used-by.svg)](https://mojourney.dev/repos/magmalake/json_mlake#used-by) [![Mojo version](https://mojourney.dev/badge/magmalake/json_mlake/mojo.svg)](https://mojourney.dev/repos/magmalake/json_mlake)
+
 **This is not a new JSON library. It is a packaged build of
 [json](https://github.com/ehsanmok/json) by
 [Ehsan M. Kermani](https://github.com/ehsanmok), redistributed so that
