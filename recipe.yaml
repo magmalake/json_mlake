@@ -49,11 +49,11 @@ build:
 requirements:
   build:
     - ${{ compiler('cxx') }}
-    - mojo-compiler ==1.3.0.dev2026111805
+    - mojo-compiler ==1.3.0.dev2026112505
   host:
     - simdjson >=4.2.4,<5
   run:
-    - mojo-compiler ==1.3.0.dev2026111805
+    - mojo-compiler ==1.3.0.dev2026112505
     - simdjson >=4.2.4,<5
   # Not a dependency. `json/gpu/` imports `max.gpu`, which ships in
   # `max-core`, but nothing on the CPU import graph names `json.gpu`,
@@ -64,7 +64,7 @@ requirements:
   # installs nothing while still pinning the version a consumer gets if
   # they add it themselves.
   run_constraints:
-    - max-core ==26.8.0.dev2026111805
+    - max-core ==26.8.0.dev2026112505
 
 about:
   homepage: https://github.com/ehsanmok/json

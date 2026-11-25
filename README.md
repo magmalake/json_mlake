@@ -56,11 +56,11 @@ Tracks upstream **v0.4.2**. Packaging, and these source deltas:
   relative to the working directory, which this drops. Worth sending
   upstream.
 
-- **Built for the Mojo 1.3 nightly, `1.3.0.dev2026111805`**, the one
+- **Built for the Mojo 1.3 nightly, `1.3.0.dev2026112505`**, the one
   toolchain every magmalake tin uses, not upstream's `mojo >=1.2.0`: the
   workspace pins `mojo` exactly on the `max-nightly` channel, the recipe
   pins `mojo-compiler` exactly (a `.mojoc` loads only in the compiler that
-  built it), and `max-core` is `26.8.0.dev2026111805`. The source changes
+  built it), and `max-core` is `26.8.0.dev2026112505`. The source changes
   the nightly needs: the iterators raise `StopIteration` at the end (a
   `for` loop no longer asks `__has_next__`, so they never ended);
   `FileHandle` is move-only, so `close()` takes it (`f^`) and the
