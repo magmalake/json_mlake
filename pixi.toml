@@ -102,7 +102,7 @@ max-core = "==26.8.0.dev2026112605"
 [feature.fuzz.dependencies]
 # magmalake's packaging of mozz, on the same Mojo nightly as this package:
 # upstream mozz v0.2.2 does not compile on it. The module is still `mozz`.
-mozz_mlake = { git = "https://github.com/magmalake/mozz_mlake.git", rev = "9978397c54f352a9fc9047cb5f6df7ecaf4389f3" }
+mozz_mlake = { git = "https://github.com/magmalake/mozz_mlake.git", rev = "1180710bcedd42a2268824ce3db02fe71ebf7569" }
 
 [environments]
 # `default` is deliberately what a consumer of the published package
