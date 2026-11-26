@@ -35,7 +35,7 @@ scripts = ["json/cpu/simdjson_ffi/build.sh"]
 # version this code compiles against. That is what a run constraint is
 # for: it pins without pulling.
 [package.run-constraints]
-max-core = "==26.8.0.dev2026112505"
+max-core = "==26.8.0.dev2026112605"
 
 # Declared so that `json = { git = "...", extras = ["gpu"] }` works the
 # day a released build backend reports extra groups. Pixi takes a source
@@ -43,14 +43,14 @@ max-core = "==26.8.0.dev2026112505"
 # released backend fills that field yet, so this is inert today and the
 # README documents the explicit `max-core` line instead.
 [package.extra-dependencies.gpu]
-max-core = "==26.8.0.dev2026112505"
+max-core = "==26.8.0.dev2026112605"
 
 [dependencies]
 # Runtime + build-essential for anyone working with this repo (running tests,
 # examples, `mojo build`-ing benchmark binaries). The activation hook below
 # compiles the simdjson FFI wrapper on every env activation, so a C++ compiler
 # has to be available here, not gated behind a dev feature.
-mojo = "==1.3.0.dev2026112505"
+mojo = "==1.3.0.dev2026112605"
 simdjson = ">=4.2.4,<5"
 
 [target.linux-64.dependencies]
@@ -97,12 +97,12 @@ gdown = ">=5.0"           # Google Drive CLI for downloading benchmark datasets
 # a consumer of the published package gets.
 # ------------------------------------------------------------------
 [feature.gpu.dependencies]
-max-core = "==26.8.0.dev2026112505"
+max-core = "==26.8.0.dev2026112605"
 
 [feature.fuzz.dependencies]
 # magmalake's packaging of mozz, on the same Mojo nightly as this package:
 # upstream mozz v0.2.2 does not compile on it. The module is still `mozz`.
-mozz_mlake = { git = "https://github.com/magmalake/mozz_mlake.git", rev = "fd90ab8ca0b3d9a363df879cd9355b3d8042b1a4" }
+mozz_mlake = { git = "https://github.com/magmalake/mozz_mlake.git", rev = "578766e2c576b7b1fde474724417025d19562f45" }
 
 [environments]
 # `default` is deliberately what a consumer of the published package
